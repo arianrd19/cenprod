@@ -27,9 +27,7 @@ class Config:
     }
 
     # Preferimos Secret File en Render; fallback a GOOGLE_APPLICATION_CREDENTIALS; último a SERVICE_ACCOUNT_FILE
-    SERVICE_ACCOUNT_FILE = os.getenv('GOOGLE_SA_FILE') \
-        or os.getenv('GOOGLE_APPLICATION_CREDENTIALS') \
-        or os.getenv('SERVICE_ACCOUNT_FILE', 'service_account.json')
+    SERVICE_ACCOUNT_FILE = os.getenv('GOOGLE_SA_FILE', '/etc/secrets/sa.json')
 
     # (Opcional) JSON completo de SA como env var, si algún entorno lo usa
     SERVICE_ACCOUNT_JSON = os.getenv('GOOGLE_SERVICE_ACCOUNT')
