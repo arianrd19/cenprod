@@ -20,12 +20,10 @@ def register_blueprints(app):
     # Importes locales para evitar import circular
     from .auth import auth_bp
     from .dashboard import dashboard_bp
-    from .datos import datos_bp
 
     app.register_blueprint(core_bp)        # raíz /
     app.register_blueprint(auth_bp)        # /auth/...
     app.register_blueprint(dashboard_bp)   # /dashboard/...
-    app.register_blueprint(datos_bp)       # /datos/...
     app.register_blueprint(ventas_bp)
     app.register_blueprint(dashboard_user_bp)
     app.register_blueprint(diag_quick_bp)
