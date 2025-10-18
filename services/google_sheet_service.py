@@ -1,4 +1,6 @@
 # services/google_sheet_service.py
+import os
+import json
 import time
 import random
 import unicodedata
@@ -37,6 +39,8 @@ class GoogleSheetService:
 
         self.scopes = [
             'https://www.googleapis.com/auth/spreadsheets',
+            # Agrega otros scopes si los usas, p. ej. drive.readonly
+            # 'https://www.googleapis.com/auth/drive.readonly',
         ]
         self.creds = None
         self.client = None
@@ -49,16 +53,30 @@ class GoogleSheetService:
     # Conexión
     # ----------------------------------------------------------
     def _connect(self):
-        """Conecta usando service_account.json."""
+        """
+        Conecta usando:
+        1) Archivo (Secret File) apuntado por Config.SERVICE_ACCOUNT_FILE (p. ej. /etc/sa.json), o
+        2) ENV con JSON COMPLETO en Config.SERVICE_ACCOUNT_JSON (p. ej. GOOGLE_SERVICE_ACCOUNT)
+        """
         try:
-            self.creds = Credentials.from_service_account_file(
-                Config.SERVICE_ACCOUNT_FILE,
-                scopes=self.scopes
-            )
+            sa_path = Config.SERVICE_ACCOUNT_FILE
+            if sa_path and os.path.exists(sa_path):
+                # Ruta a archivo (recomendado en Render via Secret File)
+                self.creds = Credentials.from_service_account_file(sa_path, scopes=self.scopes)
+            else:
+                # ENV con JSON COMPLETO (no manipules private_key ni \n)
+                raw = getattr(Config, "SERVICE_ACCOUNT_JSON", None) or os.getenv("GOOGLE_SERVICE_ACCOUNT")
+                if not raw:
+                    raise FileNotFoundError(
+                        "No hay credenciales: ni archivo en SERVICE_ACCOUNT_FILE ni JSON en GOOGLE_SERVICE_ACCOUNT"
+                    )
+                info = json.loads(raw)
+                self.creds = Credentials.from_service_account_info(info, scopes=self.scopes)
+
             self.client = gspread.authorize(self.creds)
             print("✅ Conexión exitosa con Google Sheets")
-        except FileNotFoundError:
-            print(f"❌ No se encontró el archivo {Config.SERVICE_ACCOUNT_FILE}")
+        except FileNotFoundError as e:
+            print(f"❌ Credenciales no encontradas: {e}")
             raise
         except Exception as e:
             print(f"❌ Error al conectar con Google Sheets: {e}")
