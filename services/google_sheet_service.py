@@ -1,14 +1,18 @@
 # services/google_sheet_service.py
+# -*- coding: utf-8 -*-
+
 import os
 import json
 import time
 import random
 import unicodedata
+import logging
 from functools import wraps
 from datetime import datetime, timedelta
 
 import gspread
 from google.oauth2.service_account import Credentials
+from google.auth.transport.requests import Request
 
 try:
     import requests
@@ -22,12 +26,15 @@ except Exception:
 
 from config import Config
 
+_log = logging.getLogger(__name__)  # ← usa logging en vez de print()
+
 
 class GoogleSheetService:
+    """Cliente de Google Sheets con caché, reintentos y conexión perezosa (lazy connect)."""
+
     _instance = None
 
     def __new__(cls):
-        """Singleton: solo una instancia por proceso."""
         if cls._instance is None:
             cls._instance = super(GoogleSheetService, cls).__new__(cls)
             cls._instance._initialized = False
@@ -37,56 +44,59 @@ class GoogleSheetService:
         if self._initialized:
             return
 
+        # Scopes mínimos para Sheets. Agrega drive.readonly si lo necesitas.
         self.scopes = [
-            'https://www.googleapis.com/auth/spreadsheets',
-            # Agrega otros scopes si los usas, p. ej. drive.readonly
-            # 'https://www.googleapis.com/auth/drive.readonly',
+            "https://www.googleapis.com/auth/spreadsheets",
+            # "https://www.googleapis.com/auth/drive.readonly",
         ]
+
         self.creds = None
         self.client = None
         self._sheet_cache = {}
         self._ws_cache = {}
-        self._connect()
+
+        # Lazy connect: NO conectamos aquí. Se hará en la primera operación real.
         self._initialized = True
 
     # ----------------------------------------------------------
     # Conexión
     # ----------------------------------------------------------
     def _connect(self):
+        """
+        Conecta usando:
+          1) Archivo indicado por Config.SERVICE_ACCOUNT_FILE (Render: /etc/secrets/sa.json;
+             Local: ./service_account.json), o
+          2) JSON completo en env (Config.SERVICE_ACCOUNT_JSON o GOOGLE_SERVICE_ACCOUNT).
+        Valida token antes de autorizar gspread para atrapar errores de firma temprano.
+        """
         try:
-            from google.auth.transport.requests import Request
-            sa_path = Config.SERVICE_ACCOUNT_FILE
-            print(f"[GS] SERVICE_ACCOUNT_FILE={sa_path!r}")
-
+            sa_path = getattr(Config, "SERVICE_ACCOUNT_FILE", None)
             if sa_path and os.path.exists(sa_path):
-                print(f"[GS] Usando Secret File: {sa_path}")
+                # Preferimos archivo: evita problemas de \n en private_key
                 self.creds = Credentials.from_service_account_file(sa_path, scopes=self.scopes)
-                import json
-                with open(sa_path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
             else:
                 raw = getattr(Config, "SERVICE_ACCOUNT_JSON", None) or os.getenv("GOOGLE_SERVICE_ACCOUNT")
                 if not raw:
-                    raise FileNotFoundError("No hay credenciales: ni archivo en SERVICE_ACCOUNT_FILE ni JSON en GOOGLE_SERVICE_ACCOUNT")
-                print("[GS] Usando GOOGLE_SERVICE_ACCOUNT (ENV JSON)")
-                import json
-                data = json.loads(raw)
-                self.creds = Credentials.from_service_account_info(data, scopes=self.scopes)
+                    raise FileNotFoundError("No hay credenciales: ni archivo ni JSON en env.")
+                info = json.loads(raw)  # Debe ser el JSON COMPLETO del Service Account
+                self.creds = Credentials.from_service_account_info(info, scopes=self.scopes)
 
-            print(f"[GS] client_email={data.get('client_email')}")
-            print(f"[GS] private_key_id={data.get('private_key_id')}")
+            # Validación de token (si la firma de la key es inválida, falla aquí)
+            probe = self.creds.with_scopes(self.scopes)
+            probe.refresh(Request())
 
-            # Fuerza obtención de access token aquí (si hay problema, explota ya)
-            test_creds = self.creds.with_scopes(self.scopes)
-            test_creds.refresh(Request())
-            print(f"[GS] Token OK; exp={test_creds.expiry}")
-
+            # Autoriza gspread
             self.client = gspread.authorize(self.creds)
-            print("✅ Conexión exitosa con Google Sheets")
+            _log.info("Conexión con Google Sheets establecida")
         except Exception as e:
-            print(f"❌ Error al conectar con Google Sheets: {e}")
+            # No uses print: deja registro y propaga para que el caller decida
+            _log.error("Error al conectar con Google Sheets: %s", e, exc_info=True)
             raise
 
+    def __ensure_client(self):
+        """Asegura que la conexión esté lista antes de cualquier operación."""
+        if self.client is None:
+            self._connect()
 
     # ----------------------------------------------------------
     # Utilidades de reintento
@@ -94,11 +104,11 @@ class GoogleSheetService:
     @staticmethod
     def _is_quota_error(e: Exception) -> bool:
         s = str(e).upper()
-        return ('RESOURCE_EXHAUSTED' in s) or ('429' in s) or ('RATE_LIMIT' in s)
+        return ("RESOURCE_EXHAUSTED" in s) or ("429" in s) or ("RATE_LIMIT" in s)
 
     @staticmethod
     def retry_on_quota(func):
-        """Reintenta en caso de error de cuota o HTTP/API."""
+        """Reintenta en caso de error de cuota o HTTP/API con backoff exponencial."""
         @wraps(func)
         def wrapper(self, *args, **kwargs):
             max_retries = 4
@@ -109,6 +119,7 @@ class GoogleSheetService:
                 except gspread.exceptions.APIError as e:
                     if attempt < max_retries - 1 and GoogleSheetService._is_quota_error(e):
                         delay = (base ** attempt) + random.uniform(0, 0.5)
+                        _log.debug("APIError (cuota). Reintento %s en %.2fs", attempt + 1, delay)
                         time.sleep(delay)
                         continue
                     raise
@@ -119,6 +130,7 @@ class GoogleSheetService:
                     )
                     if attempt < max_retries - 1 and (is_http_err or GoogleSheetService._is_quota_error(e)):
                         delay = (base ** attempt) + random.uniform(0, 0.5)
+                        _log.debug("HTTP/API error. Reintento %s en %.2fs", attempt + 1, delay)
                         time.sleep(delay)
                         continue
                     raise
@@ -129,7 +141,8 @@ class GoogleSheetService:
     # ----------------------------------------------------------
     @retry_on_quota
     def get_sheet_by_key(self, sheet_key):
-        """Obtiene un Spreadsheet por ID con cache."""
+        """Obtiene un Spreadsheet por ID con caché."""
+        self.__ensure_client()
         try:
             if sheet_key in self._sheet_cache:
                 return self._sheet_cache[sheet_key]
@@ -137,26 +150,32 @@ class GoogleSheetService:
             self._sheet_cache[sheet_key] = spreadsheet
             return spreadsheet
         except Exception as e:
-            print(f"❌ Error al abrir el libro {sheet_key}: {e}")
+            _log.warning("No se pudo abrir el libro %s: %s", sheet_key, e)
             return None
 
     @retry_on_quota
     def get_worksheet(self, book_name, worksheet_name):
-        """Obtiene una hoja específica usando Config.SHEETS[book]['worksheets'][logical]."""
+        """
+        Obtiene una hoja específica usando:
+          Config.SHEETS[book_name]['id'] y
+          Config.SHEETS[book_name]['worksheets'][worksheet_name]
+        """
+        self.__ensure_client()
         try:
-            if book_name not in Config.SHEETS:
-                print(f"❌ Libro '{book_name}' no encontrado en configuración")
+            sheets_cfg = getattr(Config, "SHEETS", {}) or {}
+            if book_name not in sheets_cfg:
+                _log.debug("Libro '%s' no encontrado en configuración", book_name)
                 return None
 
-            book_config = Config.SHEETS[book_name]
-            sheet_id = book_config.get('id')
+            book_config = sheets_cfg[book_name]
+            sheet_id = book_config.get("id")
             if not sheet_id:
-                print(f"❌ ID no configurado para el libro '{book_name}'")
+                _log.debug("ID no configurado para el libro '%s'", book_name)
                 return None
 
-            real_title = book_config.get('worksheets', {}).get(worksheet_name)
+            real_title = book_config.get("worksheets", {}).get(worksheet_name)
             if not real_title:
-                print(f"❌ Hoja lógica '{worksheet_name}' no encontrada en '{book_name}'")
+                _log.debug("Hoja lógica '%s' no encontrada en '%s'", worksheet_name, book_name)
                 return None
 
             cache_key = (sheet_id, real_title)
@@ -170,7 +189,8 @@ class GoogleSheetService:
                 return ws
             return None
         except Exception as e:
-            print(f"❌ Error al obtener hoja '{worksheet_name}' del libro '{book_name}': {e}")
+            _log.warning("Error al obtener hoja '%s' del libro '%s': %s",
+                         worksheet_name, book_name, e)
             return None
 
     # ----------------------------------------------------------
@@ -179,7 +199,7 @@ class GoogleSheetService:
     def _records_from_ws(self, ws):
         """Convierte la hoja a lista de dicts (1ra fila como encabezado)."""
         try:
-            values = ws.get_all_values(value_render_option='UNFORMATTED_VALUE')
+            values = ws.get_all_values(value_render_option="UNFORMATTED_VALUE")
             if not values:
                 return []
             headers = [h.strip() if isinstance(h, str) else h for h in (values[0] or [])]
@@ -187,13 +207,13 @@ class GoogleSheetService:
             out = []
             for r in rows:
                 if len(r) < len(headers):
-                    r = r + [''] * (len(headers) - len(r))
+                    r = r + [""] * (len(headers) - len(r))
                 elif len(r) > len(headers):
                     r = r[:len(headers)]
                 out.append(dict(zip(headers, r)))
             return out
         except Exception as e:
-            print(f"❌ Error al mapear registros: {e}")
+            _log.warning("Error al mapear registros: %s", e)
             return []
 
     @retry_on_quota
@@ -209,7 +229,7 @@ class GoogleSheetService:
         """Busca el primer registro que cumpla column == value."""
         records = self.get_all_records(book_name, worksheet_name)
         if strip:
-            value = (value or '').strip()
+            value = (value or "").strip()
         for rec in records:
             v = rec.get(column)
             if v is None:
@@ -230,16 +250,16 @@ class GoogleSheetService:
         if not ws:
             return False
         try:
-            ws.append_row(data, value_input_option='USER_ENTERED')
+            ws.append_row(data, value_input_option="USER_ENTERED")
             return True
         except Exception as e:
-            print(f"❌ Error al agregar registro: {e}")
+            _log.warning("Error al agregar registro: %s", e)
             return False
 
     def clear_cache(self):
         self._sheet_cache.clear()
         self._ws_cache.clear()
-        print("🗑️ Cache limpiado")
+        _log.info("Cache de Google Sheets limpiado")
 
     # ----------------------------------------------------------
     # Helpers de normalización / parsing
@@ -319,20 +339,20 @@ class GoogleSheetService:
             return None
 
     # ----------------------------------------------------------
-    # CREDENCIALES: Codigo y Comisión
+    # CREDENCIALES: Código y Comisión
     # ----------------------------------------------------------
     def get_user_code(self, username: str, config) -> str:
         """Devuelve Código desde la hoja de credenciales."""
         try:
-            cred_cfg = config['SHEETS']['credenciales']
-            sh = self.get_sheet_by_key(cred_cfg['id'])
+            cred_cfg = config["SHEETS"]["credenciales"]
+            sh = self.get_sheet_by_key(cred_cfg["id"])
             if not sh:
                 return ""
-            ws_title = cred_cfg['worksheets']['usuarios']
-            ws = self._ws_cache.get((cred_cfg['id'], ws_title))
+            ws_title = cred_cfg["worksheets"]["usuarios"]
+            ws = self._ws_cache.get((cred_cfg["id"], ws_title))
             if not ws:
                 ws = sh.worksheet(ws_title)
-                self._ws_cache[(cred_cfg['id'], ws_title)] = ws
+                self._ws_cache[(cred_cfg["id"], ws_title)] = ws
 
             rows = self._records_from_ws(ws)
             if not rows:
@@ -357,25 +377,25 @@ class GoogleSheetService:
                     val = r.get(k_codigo, "")
                     return str(val).strip() if val is not None else ""
         except Exception as e:
-            print(f"❌ get_user_code error: {e}")
+            _log.debug("get_user_code error: %s", e, exc_info=False)
         return ""
 
     def get_user_commission_pct(self, username: str, config) -> float:
-        """Lee 'Comisión' desde credenciales."""
+        """Lee 'Comisión' desde credenciales; cae a DEFAULT_COMMISSION_PCT si no hay dato."""
         try:
-            cred_cfg = config['SHEETS']['credenciales']
-            sh = self.get_sheet_by_key(cred_cfg['id'])
+            cred_cfg = config["SHEETS"]["credenciales"]
+            sh = self.get_sheet_by_key(cred_cfg["id"])
             if not sh:
-                return config.get('DEFAULT_COMMISSION_PCT', 0.10)
-            ws_title = cred_cfg['worksheets']['usuarios']
-            ws = self._ws_cache.get((cred_cfg['id'], ws_title))
+                return config.get("DEFAULT_COMMISSION_PCT", 0.10)
+            ws_title = cred_cfg["worksheets"]["usuarios"]
+            ws = self._ws_cache.get((cred_cfg["id"], ws_title))
             if not ws:
                 ws = sh.worksheet(ws_title)
-                self._ws_cache[(cred_cfg['id'], ws_title)] = ws
+                self._ws_cache[(cred_cfg["id"], ws_title)] = ws
 
             rows = self._records_from_ws(ws)
             if not rows:
-                return config.get('DEFAULT_COMMISSION_PCT', 0.10)
+                return config.get("DEFAULT_COMMISSION_PCT", 0.10)
 
             key_index = self._index_keys(rows[0])
             k_email = self._find_key(key_index, ["Email"])
@@ -402,7 +422,7 @@ class GoogleSheetService:
                         break
         except Exception:
             pass
-        return config.get('DEFAULT_COMMISSION_PCT', 0.10)
+        return config.get("DEFAULT_COMMISSION_PCT", 0.10)
 
     # ----------------------------------------------------------
     # DASHBOARD: ventas por Código (PERSONAL)
@@ -414,16 +434,16 @@ class GoogleSheetService:
             return empty
 
         try:
-            dash_cfg = config['SHEETS']['dashboard']
-            sh = self.get_sheet_by_key(dash_cfg['id'])
+            dash_cfg = config["SHEETS"]["dashboard"]
+            sh = self.get_sheet_by_key(dash_cfg["id"])
             if not sh:
                 return empty
 
-            ws_title = dash_cfg['worksheets']['registro']
-            ws = self._ws_cache.get((dash_cfg['id'], ws_title))
+            ws_title = dash_cfg["worksheets"]["registro"]
+            ws = self._ws_cache.get((dash_cfg["id"], ws_title))
             if not ws:
                 ws = sh.worksheet(ws_title)
-                self._ws_cache[(dash_cfg['id'], ws_title)] = ws
+                self._ws_cache[(dash_cfg["id"], ws_title)] = ws
 
             rows = self._records_from_ws(ws)
             if not rows:
@@ -441,7 +461,7 @@ class GoogleSheetService:
             k_operacion = self._find_key(key_index, ["NUMERO DE OPERACIÓN", "NUMERO DE OPERACION"], ["operacion"])
 
             if not k_personal:
-                print("⚠️ No se encontró columna PERSONAL en dashboard.")
+                _log.debug("No se encontró columna PERSONAL en dashboard")
                 return empty
 
             target = self._norm_code_loose(personal_code)
@@ -477,9 +497,9 @@ class GoogleSheetService:
             return {"count": len(ventas), "total_monto": round(total, 2), "ventas": ventas}
 
         except Exception as e:
-            print(f"❌ get_sales_by_code error: {e}")
+            _log.debug("get_sales_by_code error: %s", e, exc_info=False)
             return empty
 
 
-# Instancia global del servicio
+# Instancia global del servicio (lazy connect evita conectar al importar)
 gs_service = GoogleSheetService()

@@ -1,15 +1,24 @@
 # config.py
 import os
-from dotenv import load_dotenv
+from pathlib import Path
 from datetime import timedelta
-load_dotenv()
+from dotenv import load_dotenv
+
+load_dotenv()  # carga .env en local; en Render no estorba
+
+ROOT = Path(__file__).resolve().parent
 
 class Config:
     SECRET_KEY = os.getenv('SECRET_KEY', 'dev_key_change_this')
+
+    # Sesión
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
-    PERMANENT_SESSION_LIFETIME = timedelta(seconds=int(os.getenv('SESSION_SECONDS', '3600')))
+    PERMANENT_SESSION_LIFETIME = timedelta(
+        seconds=int(os.getenv('SESSION_SECONDS', '3600'))
+    )
 
+    # IDs de Sheets (deja los tuyos)
     SHEETS = {
         'credenciales': {
             'nombre': 'DATOS DE ASESOR - CENTRO PROFESIONAL DOCENTE',
@@ -26,8 +35,15 @@ class Config:
         },
     }
 
-    # Preferimos Secret File en Render; fallback a GOOGLE_APPLICATION_CREDENTIALS; último a SERVICE_ACCOUNT_FILE
-    SERVICE_ACCOUNT_FILE = os.getenv('GOOGLE_SA_FILE', '/etc/secrets/sa.json')
+    # Resuelve credenciales de Google en este orden:
+    # 1) GOOGLE_SA_FILE (ruta a archivo: /etc/secrets/sa.json en Render, ./service_account.json en local)
+    # 2) GOOGLE_APPLICATION_CREDENTIALS (convención Google)
+    # 3) ./service_account.json si existe (solo local)
+    SERVICE_ACCOUNT_FILE = (
+        os.getenv('GOOGLE_SA_FILE')
+        or os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
+        or (str(ROOT / 'service_account.json') if (ROOT / 'service_account.json').exists() else None)
+    )
 
-    # (Opcional) JSON completo de SA como env var, si algún entorno lo usa
+    # 4) Alternativa: JSON completo en env (si algún entorno lo usa)
     SERVICE_ACCOUNT_JSON = os.getenv('GOOGLE_SERVICE_ACCOUNT')

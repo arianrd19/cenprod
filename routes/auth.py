@@ -63,65 +63,69 @@ def login():
     # Si ya está logueado, redirigir
     if 'user' in session:
         return redirect(url_for('dashboard.index'))
+
     if request.method == 'POST':
         email = request.form.get('email', '').strip()
         password = request.form.get('password', '')
+
         if not email or not password:
             flash('Por favor completa todos los campos', 'error')
-            return render_template('auth/login.html')
+            return redirect(url_for('auth.login'))  # PRG
+
         try:
-            # Buscar usuario en 'credenciales' -> hoja lógica 'usuarios' (CREDENCIALES)
             user = gs_service.find_record(
                 book_name='credenciales',
                 worksheet_name='usuarios',
                 column='Email',
                 value=email
             )
-            if user:
-                entered = (password or '').strip()
-                stored = _norm_pwd(user.get('Contraseña'))
-                ok = (entered == stored)
-                if not ok:
-                    ok = (entered.lstrip('0') == stored.lstrip('0'))
-                # Si tus contraseñas son de longitud fija, puedes reforzar con zfill(n)
-                if ok:
-                    # Verificar estado
-                    if user.get('Estado', '').strip().lower() != 'activo':
-                        flash('Tu cuenta está inactiva. Contacta al administrador.', 'error')
-                        return render_template('auth/login.html')
-                    # Normalizar comisión y código
-                    comision_float = _norm_commission_to_float(user.get('Comisión'))
-                    if comision_float is None:
-                        comision_float = 0.10  # fallback estándar si no hay dato
-                    codigo = (user.get('Codigo') or user.get('Código') or '').strip()
-                    # 🆕 Nuevos campos desde CREDENCIALES
-                    raw_posicion = user.get('Posicion') or user.get('Posición')
-                    posicion = str(raw_posicion).strip().title() if raw_posicion not in (None, '') else ''
-                    volumen = _safe_float(user.get('Volumen'), default=0.0)  # número (S/)
-                    ventas = _safe_int(user.get('Ventas'), default=0)        # entero (# de ventas)
-                    # Guardar sesión
-                    session['user'] = {
-                        'email':    user.get('Email'),
-                        'username': user.get('Username'),
-                        'nombre':   user.get('Nombres y Apellidos'),
-                        'rol':      user.get('Rol', 'usuario'),
-                        'comision': comision_float,  # float 0–1
-                        'codigo':   codigo,          # <--- MUY IMPORTANTE
-                        # 🆕 Campos añadidos
-                        'posicion': posicion,        # str (ej. "Asesor Senior")
-                        'volumen':  volumen,         # float (S/)
-                        'ventas':   ventas,          # int
-                    }
-                    session.permanent = True
-                    # flash(f'¡Bienvenido {user.get("Nombres y Apellidos")}!', 'success')  # Comenta o elimina esta línea
-                    return redirect(url_for('dashboard.index'))
-                else:
-                    flash('Contraseña incorrecta', 'error')
-            else:
+
+            if not user:
                 flash('Usuario no encontrado', 'error')
+                return redirect(url_for('auth.login'))  # PRG
+
+            entered = (password or '').strip()
+            stored = _norm_pwd(user.get('Contraseña'))
+            ok = (entered == stored) or (entered.lstrip('0') == stored.lstrip('0'))
+
+            if not ok:
+                flash('Contraseña incorrecta', 'error')
+                return redirect(url_for('auth.login'))  # PRG
+
+            # Estado
+            if user.get('Estado', '').strip().lower() != 'activo':
+                flash('Tu cuenta está inactiva. Contacta al administrador.', 'error')
+                return redirect(url_for('auth.login'))  # PRG
+
+            # Normaliza y guarda sesión
+            comision_float = _norm_commission_to_float(user.get('Comisión')) or 0.10
+            codigo = (user.get('Codigo') or user.get('Código') or '').strip()
+            raw_posicion = user.get('Posicion') or user.get('Posición')
+            posicion = str(raw_posicion).strip().title() if raw_posicion not in (None, '') else ''
+            volumen = _safe_float(user.get('Volumen'), default=0.0)
+            ventas  = _safe_int(user.get('Ventas'),  default=0)
+
+            session['user'] = {
+                'email':    user.get('Email'),
+                'username': user.get('Username'),
+                'nombre':   user.get('Nombres y Apellidos'),
+                'rol':      user.get('Rol', 'usuario'),
+                'comision': comision_float,
+                'codigo':   codigo,
+                'posicion': posicion,
+                'volumen':  volumen,
+                'ventas':   ventas,
+            }
+            session.permanent = True
+            # No flashees "Bienvenido" si no quieres verlo en el dashboard
+            return redirect(url_for('dashboard.index'))
+
         except Exception as e:
             flash('Error al conectar con el servidor. Intenta nuevamente.', 'error')
             print(f"❌ Error en login: {e}")
+            return redirect(url_for('auth.login'))  # PRG
+
+    # GET
     return render_template('auth/login.html')
 
 @auth_bp.route('/logout')
