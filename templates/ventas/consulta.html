@@ -1,0 +1,490 @@
+{% extends "base.html" %}
+{% block title %}Consulta de ventas{% endblock %}
+
+{% block styles %}
+.page-header {
+    margin-bottom: 30px;
+}
+
+.page-header h2 {
+    font-size: 32px;
+    color: #22262b;
+    margin-bottom: 8px;
+    font-weight: 700;
+}
+
+.page-header p {
+    color: #7b7370;
+    font-size: 15px;
+}
+
+/* Search Box */
+.search-container {
+    background: linear-gradient(135deg, #126988 0%, #22262b 100%);
+    padding: 35px;
+    border-radius: 12px;
+    margin-bottom: 30px;
+    box-shadow: 0 4px 15px rgba(18, 105, 136, 0.15);
+}
+
+.search-label {
+    color: #fafcfc;
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 15px;
+    display: block;
+}
+
+/* Usamos grid para que se adapte mejor en tablets */
+.search-box {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 12px;
+    align-items: stretch;
+}
+
+.search-input {
+    width: 100%;
+    padding: 16px 20px;
+    border: 2px solid transparent;
+    border-radius: 10px;
+    font-size: 15px;
+    background: #fafcfc;
+    color: #22262b;
+    transition: all 0.3s;
+    min-width: 0; /* evita overflow en grid */
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: #24bc57;
+    box-shadow: 0 0 0 3px rgba(36, 188, 87, 0.1);
+}
+
+.search-input::placeholder {
+    color: #7b7370;
+}
+
+.search-btn {
+    padding: 16px 24px;
+    background: #24bc57;
+    color: #fafcfc;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    white-space: nowrap;
+}
+
+.search-btn:hover {
+    background: #1ea047;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(36, 188, 87, 0.3);
+}
+
+.search-btn:active {
+    transform: translateY(0);
+}
+
+/* Results Section */
+.results-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding: 20px;
+    background: #fafcfc;
+    border-radius: 10px;
+    border-left: 4px solid #24bc57;
+    flex-wrap: wrap;
+}
+
+.results-title {
+    font-size: 18px;
+    color: #22262b;
+    font-weight: 600;
+}
+
+.results-count {
+    background: #24bc57;
+    color: #fafcfc;
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+/* Table (Desktop/Tablet) */
+.table-wrapper {
+    background: #fafcfc;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(34, 38, 43, 0.08);
+    overflow: hidden;
+}
+
+.results-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.results-table thead {
+    background: #22262b;
+}
+
+.results-table thead th {
+    text-align: left;
+    font-size: 11px;
+    color: #fafcfc;
+    padding: 16px 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+
+.results-table tbody td {
+    padding: 14px;
+    border-bottom: 1px solid #e0e0e0;
+    font-size: 14px;
+    color: #22262b;
+}
+
+.results-table tbody tr:hover {
+    background: rgba(137, 189, 194, 0.05);
+}
+
+.results-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Cards view for mobile */
+.results-cards {
+    display: none;
+}
+
+.result-card {
+    background: #fafcfc;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 15px;
+    box-shadow: 0 2px 10px rgba(34, 38, 43, 0.08);
+    border-left: 4px solid #126988;
+}
+
+.result-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    margin-bottom: 15px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #e0e0e0;
+    gap: 12px;
+}
+
+.result-card-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #22262b;
+    margin-bottom: 4px;
+}
+
+.result-card-date {
+    font-size: 13px;
+    color: #7b7370;
+}
+
+.result-card-amount {
+    background: #24bc57;
+    color: #fafcfc;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 14px;
+    white-space: nowrap;
+}
+
+.result-card-body {
+    display: grid;
+    gap: 10px;
+}
+
+.result-field {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 10px;
+    align-items: center;
+}
+
+.result-label {
+    font-size: 12px;
+    color: #7b7370;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+}
+
+.result-value {
+    font-size: 14px;
+    color: #22262b;
+    font-weight: 500;
+    text-align: right;
+}
+
+/* Empty/No Results */
+.empty-state,
+.no-results {
+    text-align: center;
+    padding: 60px 20px;
+    background: #fafcfc;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(34, 38, 43, 0.08);
+}
+
+.empty-icon,
+.no-results-icon {
+    font-size: 64px;
+    margin-bottom: 20px;
+}
+
+.empty-title,
+.no-results-title {
+    font-size: 20px;
+    color: #22262b;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.empty-text,
+.no-results-text {
+    color: #7b7370;
+    font-size: 14px;
+}
+
+/* -------- Responsive -------- */
+@media (max-width: 1200px) {
+    .page-header h2 { font-size: 28px; }
+}
+
+/* Tablets y móviles */
+@media (max-width: 1024px) {
+    .search-container {
+        padding: 28px;
+    }
+    .search-btn { padding: 16px 20px; }
+}
+
+/* Móviles: grid a una sola columna y activamos tarjetas */
+@media (max-width: 768px) {
+    .page-header h2 { font-size: 24px; }
+    .page-header p { font-size: 14px; }
+
+    .search-container {
+        padding: 20px;
+        margin-left: -15px;
+        margin-right: -15px;
+        border-radius: 0;
+    }
+
+    .search-label { font-size: 15px; }
+
+    .search-box {
+        grid-template-columns: 1fr;
+    }
+
+    .search-input {
+        padding: 18px 16px;
+        font-size: 16px;
+    }
+
+    .search-btn {
+        padding: 18px;
+        font-size: 16px;
+        width: 100%;
+    }
+
+    .results-header {
+        flex-direction: column;
+        gap: 12px;
+        align-items: flex-start;
+        padding: 16px;
+    }
+
+    .results-title { font-size: 16px; }
+
+    /* Cambiamos a tarjetas y escondemos tabla */
+    .table-wrapper { display: none; }
+
+    .results-cards {
+        display: grid;
+        gap: 12px;
+        margin-left: -15px;
+        margin-right: -15px;
+    }
+
+    .empty-state,
+    .no-results {
+        padding: 40px 20px;
+        margin-left: -15px;
+        margin-right: -15px;
+        border-radius: 0;
+    }
+
+    .empty-icon,
+    .no-results-icon { font-size: 48px; }
+
+    .empty-title,
+    .no-results-title { font-size: 18px; }
+}
+
+@media (max-width: 480px) {
+    .page-header h2 { font-size: 22px; }
+    .search-input { padding: 16px 14px; font-size: 16px; }
+    .search-btn { padding: 16px; }
+}
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Consulta de ventas 🔍</h2>
+    <p>Busca ventas por DNI o número de celular</p>
+</div>
+
+<!-- Search Form -->
+<div class="search-container">
+    <form method="get" action="{{ url_for('ventas.consulta') }}">
+        <label class="search-label" for="q">Ingresa el DNI o celular del cliente</label>
+        <div class="search-box">
+            <input
+                type="text"
+                id="q"
+                name="q"
+                value="{{ q }}"
+                placeholder="Ejemplo: 12345678 o 987654321"
+                class="search-input"
+                required
+                autofocus
+                inputmode="numeric"
+                autocomplete="off"
+            >
+            <!-- Campo oculto para mantener compatibilidad -->
+            <input type="hidden" name="tipo" value="ambos">
+            <button type="submit" class="search-btn">
+                <span>🔍</span> Buscar
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Results -->
+{% if q %}
+    {% if total > 0 %}
+        <!-- Results Header -->
+        <div class="results-header">
+            <div class="results-title">Resultados encontrados</div>
+            <div class="results-count">{{ total }} {{ 'venta' if total == 1 else 'ventas' }}</div>
+        </div>
+
+        <!-- Tabla (Desktop/Tablet) -->
+        <div class="table-wrapper">
+            <table class="results-table">
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Cliente</th>
+                        <th>DNI</th>
+                        <th>Celular</th>
+                        <th>Asesor</th>
+                        <th>Monto</th>
+                        <th>Producto</th>
+                        <th>Especialidad</th>
+                        <th>Entidad</th>
+                        <th>Operación</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in resultados %}
+                    <tr>
+                        <td>{{ r.fecha_venta }}</td>
+                        <td>{{ r.cliente }}</td>
+                        <td>{{ r.dni }}</td>
+                        <td>{{ r.celular }}</td>
+                        <td>{{ r.asesor }}</td>
+                        <td>S/ {{ r.monto_total }}</td>
+                        <td>{{ r.producto }}</td>
+                        <td>{{ r.especialidad }}</td>
+                        <td>{{ r.entidad }}</td>
+                        <td>{{ r.operacion }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Tarjetas (Móvil) -->
+        <div class="results-cards">
+            {% for r in resultados %}
+            <article class="result-card" aria-label="Resultado de venta">
+                <header class="result-card-header">
+                    <div>
+                        <div class="result-card-title">{{ r.cliente }}</div>
+                        <div class="result-card-date">{{ r.fecha_venta }}</div>
+                    </div>
+                    <div class="result-card-amount">S/ {{ r.monto_total }}</div>
+                </header>
+                <div class="result-card-body">
+                    <div class="result-field">
+                        <div class="result-label">DNI</div>
+                        <div class="result-value">{{ r.dni }}</div>
+                    </div>
+                    <div class="result-field">
+                        <div class="result-label">Celular</div>
+                        <div class="result-value">{{ r.celular }}</div>
+                    </div>
+                    <div class="result-field">
+                        <div class="result-label">Asesor</div>
+                        <div class="result-value">{{ r.asesor }}</div>
+                    </div>
+                    <div class="result-field">
+                        <div class="result-label">Producto</div>
+                        <div class="result-value">{{ r.producto }}</div>
+                    </div>
+                    <div class="result-field">
+                        <div class="result-label">Especialidad</div>
+                        <div class="result-value">{{ r.especialidad }}</div>
+                    </div>
+                    <div class="result-field">
+                        <div class="result-label">Entidad</div>
+                        <div class="result-value">{{ r.entidad }}</div>
+                    </div>
+                    <div class="result-field">
+                        <div class="result-label">Operación</div>
+                        <div class="result-value">{{ r.operacion }}</div>
+                    </div>
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <!-- No Results -->
+        <div class="no-results">
+            <div class="no-results-icon">🔍</div>
+            <div class="no-results-title">No se encontraron resultados</div>
+            <div class="no-results-text">No hay ventas registradas con el criterio "{{ q }}"</div>
+        </div>
+    {% endif %}
+{% else %}
+    <!-- Empty State -->
+    <div class="empty-state">
+        <div class="empty-icon">📊</div>
+        <div class="empty-title">Comienza tu búsqueda</div>
+        <div class="empty-text">Ingresa un DNI o número de celular para consultar las ventas</div>
+    </div>
+{% endif %}
+{% endblock %}

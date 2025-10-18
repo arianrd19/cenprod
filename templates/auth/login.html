@@ -1,0 +1,179 @@
+{% extends 'base.html' %}
+
+{% block title %}Login{% endblock %}
+
+{% block styles %}
+.login-wrapper {
+    background: linear-gradient(135deg, #126988 0%, #22262b 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: -30px -20px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+}
+
+.login-wrapper::before {
+    content: '';
+    position: absolute;
+    width: 400px;
+    height: 400px;
+    background: radial-gradient(circle, rgba(137, 189, 194, 0.15) 0%, transparent 70%);
+    top: -100px;
+    right: -100px;
+    border-radius: 50%;
+}
+
+.login-wrapper::after {
+    content: '';
+    position: absolute;
+    width: 300px;
+    height: 300px;
+    background: radial-gradient(circle, rgba(36, 188, 87, 0.1) 0%, transparent 70%);
+    bottom: -80px;
+    left: -80px;
+    border-radius: 50%;
+}
+
+.login-container {
+    background: #fafcfc;
+    padding: 45px 40px;
+    border-radius: 20px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    width: 100%;
+    max-width: 420px;
+    position: relative;
+    z-index: 1;
+    border: 1px solid rgba(137, 189, 194, 0.2);
+}
+
+.login-header {
+    text-align: center;
+    margin-bottom: 35px;
+}
+
+.login-header h2 {
+    color: #22262b;
+    font-size: 32px;
+    margin-bottom: 8px;
+    font-weight: 700;
+}
+
+.login-header p {
+    color: #7b7370;
+    font-size: 15px;
+    font-weight: 400;
+}
+
+.form-group {
+    margin-bottom: 24px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 10px;
+    color: #22262b;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 14px 16px;
+    border: 2px solid #89bdc2;
+    border-radius: 10px;
+    font-size: 15px;
+    transition: all 0.3s ease;
+    background: #fafcfc;
+    color: #22262b;
+}
+
+.form-group input::placeholder {
+    color: #7b7370;
+    opacity: 0.7;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: #126988;
+    box-shadow: 0 0 0 3px rgba(18, 105, 136, 0.1);
+    background: white;
+}
+
+.btn {
+    width: 100%;
+    padding: 16px;
+    background: linear-gradient(135deg, #24bc57 0%, #126988 100%);
+    color: #fafcfc;
+    border: none;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-top: 10px;
+    letter-spacing: 0.5px;
+}
+
+.btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(36, 188, 87, 0.4);
+}
+
+.btn:active {
+    transform: translateY(-1px);
+}
+
+.emoji-icon {
+    font-size: 42px;
+    margin-bottom: 10px;
+    display: inline-block;
+    animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+}
+
+@media (max-width: 480px) {
+    .login-container {
+        padding: 35px 25px;
+        margin: 0 10px;
+    }
+    
+    .login-header h2 {
+        font-size: 26px;
+    }
+}
+{% endblock %}
+
+{% block content %}
+<div class="login-wrapper">
+    <div class="login-container">
+        <div class="login-header">
+            <div class="emoji-icon">🔐</div>
+            <h2>Iniciar Sesión</h2>
+            <p>Ingresa tus credenciales para continuar</p>
+        </div>
+        
+        <form method="POST" action="{{ url_for('auth.login') }}">
+            <div class="form-group">
+                <label for="email">Correo Electrónico</label>
+                <input type="email" id="email" name="email" required 
+                       placeholder="tu@email.com" autocomplete="email">
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Contraseña</label>
+                <input type="password" id="password" name="password" required 
+                       placeholder="••••••••" autocomplete="current-password">
+            </div>
+            
+            <button type="submit" class="btn">Ingresar</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
