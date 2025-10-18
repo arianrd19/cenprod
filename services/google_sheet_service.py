@@ -53,34 +53,40 @@ class GoogleSheetService:
     # Conexión
     # ----------------------------------------------------------
     def _connect(self):
-        """
-        Conecta usando:
-        1) Archivo (Secret File) apuntado por Config.SERVICE_ACCOUNT_FILE (p. ej. /etc/sa.json), o
-        2) ENV con JSON COMPLETO en Config.SERVICE_ACCOUNT_JSON (p. ej. GOOGLE_SERVICE_ACCOUNT)
-        """
         try:
+            from google.auth.transport.requests import Request
             sa_path = Config.SERVICE_ACCOUNT_FILE
+            print(f"[GS] SERVICE_ACCOUNT_FILE={sa_path!r}")
+
             if sa_path and os.path.exists(sa_path):
-                # Ruta a archivo (recomendado en Render via Secret File)
+                print(f"[GS] Usando Secret File: {sa_path}")
                 self.creds = Credentials.from_service_account_file(sa_path, scopes=self.scopes)
+                import json
+                with open(sa_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
             else:
-                # ENV con JSON COMPLETO (no manipules private_key ni \n)
                 raw = getattr(Config, "SERVICE_ACCOUNT_JSON", None) or os.getenv("GOOGLE_SERVICE_ACCOUNT")
                 if not raw:
-                    raise FileNotFoundError(
-                        "No hay credenciales: ni archivo en SERVICE_ACCOUNT_FILE ni JSON en GOOGLE_SERVICE_ACCOUNT"
-                    )
-                info = json.loads(raw)
-                self.creds = Credentials.from_service_account_info(info, scopes=self.scopes)
+                    raise FileNotFoundError("No hay credenciales: ni archivo en SERVICE_ACCOUNT_FILE ni JSON en GOOGLE_SERVICE_ACCOUNT")
+                print("[GS] Usando GOOGLE_SERVICE_ACCOUNT (ENV JSON)")
+                import json
+                data = json.loads(raw)
+                self.creds = Credentials.from_service_account_info(data, scopes=self.scopes)
+
+            print(f"[GS] client_email={data.get('client_email')}")
+            print(f"[GS] private_key_id={data.get('private_key_id')}")
+
+            # Fuerza obtención de access token aquí (si hay problema, explota ya)
+            test_creds = self.creds.with_scopes(self.scopes)
+            test_creds.refresh(Request())
+            print(f"[GS] Token OK; exp={test_creds.expiry}")
 
             self.client = gspread.authorize(self.creds)
             print("✅ Conexión exitosa con Google Sheets")
-        except FileNotFoundError as e:
-            print(f"❌ Credenciales no encontradas: {e}")
-            raise
         except Exception as e:
             print(f"❌ Error al conectar con Google Sheets: {e}")
             raise
+
 
     # ----------------------------------------------------------
     # Utilidades de reintento
