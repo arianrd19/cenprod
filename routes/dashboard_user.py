@@ -24,7 +24,7 @@ def _month_range_today():
 def me_dashboard():
     # --- Usuario en sesión
     user = session.get("user", {})
-    username = (user.get("email") or user.get("username") or user.get("name") or user.get("nombre") or "").strip()
+    username = ( user.get("name") or user.get("nombre") or "").strip()
 
     # --- Rango del mes actual
     today, first_day, last_day = _month_range_today()

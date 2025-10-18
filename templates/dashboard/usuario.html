@@ -35,6 +35,19 @@
     border-left: 4px solid #89bdc2;
     transition: transform 0.2s, box-shadow 0.2s;
     min-width: 0;
+    position: relative;
+    overflow: hidden;
+}
+
+.stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0.08;
+    transition: opacity 0.3s;
 }
 
 .stat-card:hover {
@@ -42,18 +55,58 @@
     box-shadow: 0 4px 15px rgba(34, 38, 43, 0.12);
 }
 
-.stat-card:nth-child(1) { border-left-color: #24bc57; }
-.stat-card:nth-child(2) { border-left-color: #126988; }
-.stat-card:nth-child(3) { border-left-color: #24bc57; }
-.stat-card:nth-child(4) { border-left-color: #89bdc2; }
+.stat-card:hover::before {
+    opacity: 0.12;
+}
+
+.stat-card:nth-child(1) { 
+    border-left-color: #24bc57;
+}
+.stat-card:nth-child(1)::before {
+    background: linear-gradient(135deg, #24bc57, #1e9d4a);
+}
+.stat-card:nth-child(1) .card-title {
+    color: #24bc57;
+}
+
+.stat-card:nth-child(2) { 
+    border-left-color: #126988;
+}
+.stat-card:nth-child(2)::before {
+    background: linear-gradient(135deg, #126988, #0e5266);
+}
+.stat-card:nth-child(2) .card-title {
+    color: #126988;
+}
+
+.stat-card:nth-child(3) { 
+    border-left-color: #d97706;
+}
+.stat-card:nth-child(3)::before {
+    background: linear-gradient(135deg, #d97706, #b45309);
+}
+.stat-card:nth-child(3) .card-title {
+    color: #d97706;
+}
+
+.stat-card:nth-child(4) { 
+    border-left-color: #8b5cf6;
+}
+.stat-card:nth-child(4)::before {
+    background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+}
+.stat-card:nth-child(4) .card-title {
+    color: #8b5cf6;
+}
 
 .card-title {
     font-size: 12px;
-    color: #7b7370;
     text-transform: uppercase;
     letter-spacing: 1px;
-    font-weight: 600;
+    font-weight: 700;
     margin-bottom: 12px;
+    position: relative;
+    z-index: 1;
 }
 
 .card-value {
@@ -61,6 +114,8 @@
     font-weight: 700;
     color: #22262b;
     word-wrap: break-word;
+    position: relative;
+    z-index: 1;
 }
 
 /* Reduce motion for users who prefer it */

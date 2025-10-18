@@ -411,7 +411,7 @@
                 <tbody>
                     {% for r in resultados %}
                     <tr>
-                        <td>{{ r.fecha_venta }}</td>
+                        <td>{{ r.fecha_venta_fmt }}</td>
                         <td>{{ r.cliente }}</td>
                         <td>{{ r.dni }}</td>
                         <td>{{ r.celular }}</td>
@@ -434,7 +434,7 @@
                 <header class="result-card-header">
                     <div>
                         <div class="result-card-title">{{ r.cliente }}</div>
-                        <div class="result-card-date">{{ r.fecha_venta }}</div>
+                        <div class="result-card-date">{{ r.fecha_venta_fmt }}</div>
                     </div>
                     <div class="result-card-amount">S/ {{ r.monto_total }}</div>
                 </header>

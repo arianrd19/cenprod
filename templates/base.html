@@ -1,395 +1,324 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Sistema{% endblock %} - CENPROD</title>
-    <style>
-        * {
-            margin: 0; padding: 0; box-sizing: border-box;
-        }
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #fafcfc;
-            min-height: 100vh;
-        }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}Sistema{% endblock %} - CENPROD</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #fafcfc;
+      min-height: 100vh;
+    }
 
-        /* Layout principal */
-        .app-layout {
-            display: flex;
-            min-height: 100vh;
-        }
+    /* ====== Layout principal ====== */
+    .app-layout {
+      display: flex;
+      min-height: 100vh;
+    }
 
-        /* Sidebar */
-        .sidebar {
-            width: 260px;
-            background: #22262b;
-            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
-            display: flex;
-            flex-direction: column;
-            position: fixed;
-            height: 100vh;
-            left: 0;
-            top: 0;
-            z-index: 1000;
-            transition: transform 0.3s ease;
-        }
+    /* ====== Sidebar ====== */
+    .sidebar {
+      width: 260px;
+      background: #22262b;
+      box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+      display: flex;
+      flex-direction: column;
+      position: fixed;
+      height: 100vh;
+      left: 0;
+      top: 0;
+      z-index: 1000;
+      transition: transform 0.3s ease;
+    }
 
-        .sidebar-header {
-            padding: 25px 20px;
-            border-bottom: 1px solid rgba(137, 189, 194, 0.15);
-        }
+    /* Header */
+    .sidebar-header {
+      padding: 25px 20px 20px;
+      border-bottom: 1px solid rgba(137, 189, 194, 0.15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
 
-        .sidebar-brand {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            color: #fafcfc;
-        }
+    .brand-link {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+      gap: 10px;
+      color: #fafcfc;
+    }
 
-        .sidebar-brand h1 {
-            font-size: 20px;
-            font-weight: 700;
-        }
+    /* LOGO (ajustado -30%) */
+    .sidebar-logo {
+      display: block;
+      max-width: 250px;
+      max-height: 110px;
+      width: 100%;
+      height: auto;
+      cursor: pointer;
+      transition: transform 0.2s;
+      object-fit: contain;
+    }
 
-        .sidebar-user {
-            padding: 20px;
-            border-bottom: 1px solid rgba(137, 189, 194, 0.15);
-        }
+    .sidebar-logo:hover { transform: scale(1.05); }
 
-        .user-avatar {
-            width: 50px;
-            height: 50px;
-            background: linear-gradient(135deg, #24bc57 0%, #126988 100%);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            margin-bottom: 12px;
-        }
+    .brand-fallback {
+      display: none;
+      color: #fafcfc;
+      font-weight: 700;
+      font-size: 18px;
+      letter-spacing: 0.5px;
+    }
 
-        .user-name {
-            color: #fafcfc;
-            font-size: 16px;
-            font-weight: 600;
-            margin-bottom: 4px;
-        }
+    /* ====== Usuario ====== */
+    .sidebar-user {
+      padding: 30px 20px 20px;
+      border-bottom: 1px solid rgba(137, 189, 194, 0.15);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
 
-        .user-email {
-            color: #89bdc2;
-            font-size: 12px;
-        }
+    .user-avatar {
+      width: 70px;
+      height: 70px;
+      background: linear-gradient(135deg, #24bc57 0%, #126988 100%);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      color: #fff;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+    }
 
-        .sidebar-nav {
-            flex: 1;
-            padding: 20px 0;
-            overflow-y: auto;
-        }
+    .user-name {
+      color: #fafcfc;
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
 
-        .nav-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px 20px;
-            color: #89bdc2;
-            text-decoration: none;
-            font-size: 14px;
-            font-weight: 500;
-            transition: all 0.2s;
-        }
+    .user-email {
+      color: #89bdc2;
+      font-size: 12px;
+    }
 
-        .nav-item:hover {
-            background: rgba(137, 189, 194, 0.1);
-            color: #fafcfc;
-        }
+    /* ====== Navegación ====== */
+    .sidebar-nav {
+      flex: 1;
+      padding: 20px 0;
+      overflow-y: auto;
+    }
 
-        .nav-item.active {
-            background: rgba(36, 188, 87, 0.15);
-            color: #24bc57;
-            border-left: 3px solid #24bc57;
-        }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 20px;
+      color: #89bdc2;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
 
-        .nav-item span:first-child {
-            font-size: 18px;
-        }
+    .nav-item:hover {
+      background: rgba(137, 189, 194, 0.1);
+      color: #fafcfc;
+    }
 
-        .sidebar-footer {
-            padding: 20px;
-            border-top: 1px solid rgba(137, 189, 194, 0.15);
-        }
+    .nav-item.active {
+      background: rgba(36, 188, 87, 0.15);
+      color: #24bc57;
+      border-left: 3px solid #24bc57;
+    }
 
-        .logout-btn {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            width: 100%;
-            padding: 12px;
-            background: #24bc57;
-            color: #fafcfc;
-            text-decoration: none;
-            border-radius: 8px;
-            font-weight: 600;
-            font-size: 14px;
-            transition: background 0.2s;
-        }
+    .nav-item span:first-child { font-size: 18px; }
 
-        .logout-btn:hover {
-            background: #1ea047;
-        }
+    /* ====== Footer ====== */
+    .sidebar-footer {
+      padding: 20px;
+      border-top: 1px solid rgba(137, 189, 194, 0.15);
+    }
 
-        /* Main Content */
-        .main-content {
-            flex: 1;
-            margin-left: 260px;
-            padding: 30px;
-            transition: margin-left 0.3s ease;
-        }
+    .logout-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      padding: 12px;
+      background: #24bc57;
+      color: #fafcfc;
+      text-decoration: none;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 14px;
+      transition: background 0.2s;
+    }
 
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-        }
+    .logout-btn:hover { background: #1ea047; }
 
-        /* Mobile Toggle */
-        .mobile-toggle {
-            display: none;
-            position: fixed;
-            top: 15px;
-            left: 15px;
-            z-index: 1001;
-            background: #22262b;
-            color: #fafcfc;
-            border: none;
-            padding: 10px 15px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 20px;
-        }
+    /* ====== Main ====== */
+    .main-content {
+      flex: 1;
+      margin-left: 260px;
+      padding: 30px;
+      transition: margin-left 0.3s ease;
+    }
 
-        .mobile-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 999;
-        }
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
 
-        /* Alerts */
-        .alert {
-            padding: 16px 20px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            font-size: 14px;
-            border-left: 4px solid;
-        }
-        .alert-error {
-            background-color: #fee;
-            color: #c33;
-            border-color: #c33;
-        }
-        .alert-success {
-            background-color: #e8f5e9;
-            color: #2a7;
-            border-color: #24bc57;
-        }
-        .alert-info {
-            background-color: #e3f2fd;
-            color: #126988;
-            border-color: #126988;
-        }
+    /* ====== Botón móvil ====== */
+    .mobile-toggle {
+      display: none;
+      position: fixed;
+      top: 15px;
+      left: 15px;
+      z-index: 1001;
+      background: #22262b;
+      color: #fafcfc;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 20px;
+    }
 
-        /* Forms & Tables */
-        .form-row {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            margin: 10px 0;
-        }
-        .form-row input, .form-row select, .form-row button {
-            padding: 12px 16px;
-            border-radius: 8px;
-            border: 2px solid #89bdc2;
-            font-size: 14px;
-            background: #fafcfc;
-            color: #22262b;
-        }
-        .form-row input:focus, .form-row select:focus {
-            outline: none;
-            border-color: #126988;
-        }
-        .form-row button {
-            background: #126988;
-            color: #fafcfc;
-            border: none;
-            cursor: pointer;
-            font-weight: 600;
-        }
-        .form-row button:hover {
-            background: #24bc57;
-        }
+    .mobile-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 999;
+    }
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-            background: #fafcfc;
-            border-radius: 10px;
-            overflow: hidden;
-            box-shadow: 0 2px 8px rgba(34, 38, 43, 0.08);
-        }
-        th, td {
-            padding: 14px 16px;
-            border-bottom: 1px solid #e0e0e0;
-            font-size: 14px;
-        }
-        th {
-            text-align: left;
-            background: #22262b;
-            color: #fafcfc;
-            font-weight: 600;
-            text-transform: uppercase;
-            font-size: 12px;
-            letter-spacing: 0.5px;
-        }
-        tr:hover {
-            background: rgba(137, 189, 194, 0.05);
-        }
-        .page-title {
-            font-size: 28px;
-            margin-bottom: 20px;
-            color: #22262b;
-            font-weight: 700;
-        }
+    /* ====== Alertas ====== */
+    .alert {
+      padding: 16px 20px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      font-size: 14px;
+      border-left: 4px solid;
+    }
+    .alert-error { background-color: #fee; color: #c33; border-color: #c33; }
+    .alert-success { background-color: #e8f5e9; color: #2a7; border-color: #24bc57; }
+    .alert-info { background-color: #e3f2fd; color: #126988; border-color: #126988; }
 
-        /* Responsive */
-        @media (max-width: 1024px) {
-            .sidebar {
-                transform: translateX(-100%);
-            }
+    /* ====== Responsive ====== */
+    @media (max-width: 1024px) {
+      .sidebar { transform: translateX(-100%); }
+      .sidebar.active { transform: translateX(0); }
+      .main-content { margin-left: 0; padding: 70px 20px 20px; }
+      .mobile-toggle { display: block; }
+      .mobile-overlay.active { display: block; }
+    }
 
-            .sidebar.active {
-                transform: translateX(0);
-            }
+    @media (max-width: 768px) {
+      .main-content { padding: 70px 15px 15px; }
+      .sidebar { width: 280px; }
+      .sidebar-logo { max-width: 200px; max-height: 90px; }
+    }
 
-            .main-content {
-                margin-left: 0;
-                padding: 70px 20px 20px;
-            }
-
-            .mobile-toggle {
-                display: block;
-            }
-
-            .mobile-overlay.active {
-                display: block;
-            }
-        }
-
-        @media (max-width: 768px) {
-            .main-content {
-                padding: 70px 15px 15px;
-            }
-
-            .sidebar {
-                width: 280px;
-            }
-        }
-
-        {% block styles %}{% endblock %}
-    </style>
+    {% block styles %}{% endblock %}
+  </style>
 </head>
 <body>
-    {% if session.get('user') %}
-    <div class="app-layout">
-        <!-- Mobile Toggle -->
-        <button class="mobile-toggle" onclick="toggleSidebar()">☰</button>
-        <div class="mobile-overlay" onclick="toggleSidebar()"></div>
+{% if session.get('user') %}
+<div class="app-layout">
+  <!-- Botón móvil -->
+  <button class="mobile-toggle" onclick="toggleSidebar()">☰</button>
+  <div class="mobile-overlay" onclick="toggleSidebar()"></div>
 
-        <!-- Sidebar -->
-        <aside class="sidebar" id="sidebar">
-            <div class="sidebar-header">
-                <div class="sidebar-brand">
-                    <span>🏢</span>
-                    <h1>CENPROD</h1>
-                </div>
-            </div>
-
-            <div class="sidebar-user">
-                <div class="user-avatar">👤</div>
-                <div class="user-name">{{ session.get('user', {}).get('nombre', 'Usuario') }}</div>
-                <div class="user-email">{{ session.get('user', {}).get('email', '') }}</div>
-            </div>
-
-            <nav class="sidebar-nav">
-                <a href="{{ url_for('dashboard.index') }}" class="nav-item">
-                    <span>👤</span> Inicio
-                </a>
-                <a href="{{ url_for('dashboard_user.me_dashboard') }}" class="nav-item">
-                    <span>📊</span> Dashboard
-                </a>
-               <!--   <a href="{{ url_for('datos.lista') }}" class="nav-item">
-                    <span>📋</span> Datos
-                </a>-->
-                <a href="{{ url_for('ventas.consulta') }}" class="nav-item">
-                    <span>💰</span> Consulta de ventas
-                </a>
-                
-            </nav>
-
-            <div class="sidebar-footer">
-                <a href="{{ url_for('auth.logout') }}" class="logout-btn">
-                    <span>🚪</span> Cerrar Sesión
-                </a>
-            </div>
-        </aside>
-
-        <!-- Main Content -->
-        <main class="main-content">
-            <div class="container">
-                {% with messages = get_flashed_messages(with_categories=true) %}
-                    {% if messages %}
-                        {% for category, message in messages %}
-                            <div class="alert alert-{{ category }}">
-                                {{ message }}
-                            </div>
-                        {% endfor %}
-                    {% endif %}
-                {% endwith %}
-
-                {% block content %}{% endblock %}
-            </div>
-        </main>
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <a href="{{ url_for('dashboard.index') }}" class="brand-link">
+        <img
+          src="{{ url_for('static', filename='assets/logo.png') }}"
+          alt="Logo CENPROD"
+          class="sidebar-logo"
+          loading="eager"
+          decoding="async"
+          onerror="this.style.display='none';this.closest('.brand-link').querySelector('.brand-fallback').style.display='inline-flex';"
+        />
+        <span class="brand-fallback">CENPROD</span>
+      </a>
     </div>
 
-    <script>
-        function toggleSidebar() {
-            const sidebar = document.getElementById('sidebar');
-            const overlay = document.querySelector('.mobile-overlay');
-            sidebar.classList.toggle('active');
-            overlay.classList.toggle('active');
-        }
-
-        // Marcar item activo
-        const currentPath = window.location.pathname.replace(/\/$/, "");
-        document.querySelectorAll('.nav-item').forEach(item => {
-            const href = item.getAttribute('href').replace(/\/$/, "");
-            if (href === currentPath) {
-                item.classList.add('active');
-            }
-        });
-    </script>
-
-    {% else %}
-    <div class="container" style="margin-top: 30px; padding: 0 20px;">
-        {{ self.content() }}
+    <div class="sidebar-user">
+      <div class="user-avatar">👤</div>
+      <div class="user-name">{{ session.get('user', {}).get('nombre', 'Usuario') }}</div>
+      <div class="user-email">{{ session.get('user', {}).get('email', '') }}</div>
     </div>
-    {% endif %}
 
-    {% block scripts %}{% endblock %}
+    <nav class="sidebar-nav">
+      <a href="{{ url_for('dashboard.index') }}" class="nav-item">
+        <span>🏠</span> Inicio
+      </a>
+      <a href="{{ url_for('dashboard_user.me_dashboard') }}" class="nav-item">
+        <span>📊</span> Dashboard
+      </a>
+      <a href="{{ url_for('ventas.consulta') }}" class="nav-item">
+        <span>💰</span> Consulta de ventas
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <a href="{{ url_for('auth.logout') }}" class="logout-btn">
+        <span>🚪</span> Cerrar Sesión
+      </a>
+    </div>
+  </aside>
+
+  <!-- Contenido principal -->
+  <main class="main-content">
+    <div class="container">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+            <div class="alert alert-{{ category }}">{{ message }}</div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+      {% block content %}{% endblock %}
+    </div>
+  </main>
+</div>
+
+<script>
+  function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.querySelector('.mobile-overlay');
+    sidebar.classList.toggle('active');
+    overlay.classList.toggle('active');
+  }
+
+  // marcar item activo
+  const currentPath = window.location.pathname.replace(/\/$/, "");
+  document.querySelectorAll('.nav-item').forEach(item => {
+    const href = item.getAttribute('href').replace(/\/$/, "");
+    if (href === currentPath) item.classList.add('active');
+  });
+</script>
+
+{% else %}
+<div class="container" style="margin-top: 30px; padding: 0 20px;">
+  {{ self.content() }}
+</div>
+{% endif %}
+{% block scripts %}{% endblock %}
 </body>
 </html>
