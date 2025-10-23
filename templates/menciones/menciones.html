@@ -1,0 +1,481 @@
+{% extends 'base.html' %}
+{% block title %}Menciones{% endblock %}
+
+{% block styles %}
+:root{
+  --brand:#126988;
+  --brand-2:#24bc57;
+  --accent:#89bdc2;
+  --bg:#f4f6f8;
+  --card:#ffffff;
+  --ink:#22262b;
+  --muted:#7b7370;
+  --border:#e8e8e8;
+  --shadow:0 2px 10px rgba(34,38,43,.08);
+  --radius:12px;
+}
+
+/* Layout */
+.menciones-container{
+  max-width:1200px;
+  margin:0 auto;
+  padding:clamp(12px, 2vw, 24px) clamp(12px, 3vw, 24px);
+  padding-left:max(12px, calc(env(safe-area-inset-left) + 12px));
+  padding-right:max(12px, calc(env(safe-area-inset-right) + 12px));
+  background:var(--bg);
+}
+
+/* Header */
+.page-header{margin-bottom:clamp(16px, 3vw, 24px);}
+.page-header h1{
+  font-size:clamp(24px, 4vw, 32px);
+  color:var(--ink);
+  font-weight:800;
+  margin:0 0 4px;
+}
+.page-header p{
+  color:var(--muted);
+  font-size:clamp(13px, 2vw, 15px);
+  margin:0;
+}
+
+/* Filters Card */
+.filters-card{
+  background:var(--card);
+  border-radius:var(--radius);
+  padding:clamp(16px, 3vw, 24px);
+  box-shadow:var(--shadow);
+  margin-bottom:clamp(16px, 3vw, 24px);
+  border-left:4px solid var(--brand);
+}
+
+.filters-grid{
+  display:grid;
+  grid-template-columns:repeat(12, minmax(0,1fr));
+  gap:clamp(12px, 2.5vw, 16px);
+  margin-bottom:16px;
+  align-items:end;
+}
+
+.field{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  min-width:0;
+}
+
+.field.span-3{grid-column:span 3}
+.field.span-4{grid-column:span 4}
+.field.span-6{grid-column:span 6}
+.field.span-12{grid-column:span 12}
+
+.field label{
+  font-size:12px;
+  color:var(--muted);
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  font-weight:700;
+}
+
+.field input,
+.field select{
+  width:100%;
+  padding:12px 14px;
+  border:2px solid var(--border);
+  border-radius:8px;
+  outline:none;
+  font-size:14px;
+  color:var(--ink);
+  background:var(--card);
+  transition:border-color .2s, box-shadow .2s, transform .15s;
+}
+
+.field input:focus,
+.field select:focus{
+  border-color:var(--brand);
+  box-shadow:0 0 0 3px rgba(18,105,136,.1);
+}
+
+.field input::placeholder{color:#bbb;}
+
+/* Actions */
+.filters-actions{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+}
+
+.btn{
+  padding:12px 24px;
+  border-radius:8px;
+  font-size:14px;
+  font-weight:700;
+  border:none;
+  cursor:pointer;
+  transition:transform .15s, box-shadow .2s, background-color .2s, color .2s;
+  text-decoration:none;
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  will-change:transform;
+}
+
+.btn-primary{background:var(--brand);color:white;}
+@media(hover:hover){
+  .btn-primary:hover{
+    background:#0e5266;
+    transform:translateY(-2px);
+    box-shadow:0 4px 12px rgba(18,105,136,.3);
+  }
+}
+
+.btn-secondary{
+  background:var(--bg);
+  color:var(--muted);
+  border:2px solid var(--border);
+}
+@media(hover:hover){
+  .btn-secondary:hover{background:#e8eaed;color:var(--ink);}
+}
+
+/* Results Info */
+.results-info{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:12px 16px;
+  background:var(--card);
+  border-radius:var(--radius);
+  margin-bottom:16px;
+  box-shadow:var(--shadow);
+  font-size:14px;
+  color:var(--muted);
+  gap:8px;
+}
+
+.results-count{font-weight:700;color:var(--ink);}
+
+/* Table - Desktop */
+.table-card{
+  background:var(--card);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  overflow:hidden;
+  display:block;
+}
+
+.table-wrapper{
+  overflow-x:auto;
+  -webkit-overflow-scrolling:touch;
+  scrollbar-width:thin;
+}
+
+.data-table{
+  width:100%;
+  border-collapse:collapse;
+  min-width:900px;
+}
+
+.data-table thead{
+  background:var(--brand);
+  position:sticky;
+  top:0;
+  z-index:2;
+}
+
+.data-table th{
+  padding:14px 16px;
+  text-align:left;
+  font-size:12px;
+  color:white;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  font-weight:700;
+  white-space:nowrap;
+}
+
+.data-table td{
+  padding:12px 16px;
+  border-bottom:1px solid #f0f0f0;
+  font-size:14px;
+  color:var(--ink);
+  vertical-align:top;
+}
+
+.data-table td:nth-child(4){white-space:normal;word-break:break-word;}
+.data-table td:nth-child(6),
+.data-table td:nth-child(7),
+.data-table td:nth-child(8){white-space:nowrap;}
+
+.data-table tbody tr{transition:background-color .2s;}
+@media(hover:hover){
+  .data-table tbody tr:hover{background:rgba(18,105,136,.04);}
+}
+.data-table tbody tr:last-child td{border-bottom:none;}
+
+/* Cards - Mobile */
+.menciones-cards{display:none;gap:14px;}
+
+.mencion-card{
+  background:var(--card);
+  border-radius:var(--radius);
+  padding:16px;
+  box-shadow:var(--shadow);
+  border-left:4px solid var(--brand);
+}
+
+.mencion-card__header{
+  display:flex;
+  justify-content:space-between;
+  align-items:start;
+  gap:12px;
+  padding-bottom:12px;
+  border-bottom:2px solid var(--border);
+  margin-bottom:12px;
+}
+
+.mencion-card__nro{
+  font-size:18px;
+  font-weight:800;
+  color:var(--brand);
+}
+
+.mencion-card__esp{
+  font-size:13px;
+  font-weight:700;
+  color:var(--ink);
+}
+
+.mencion-card__grid{display:grid;gap:10px;}
+
+.mencion-field{
+  display:grid;
+  grid-template-columns:110px 1fr;
+  gap:10px;
+  align-items:start;
+}
+
+.mencion-field__label{
+  font-size:11px;
+  color:var(--muted);
+  text-transform:uppercase;
+  letter-spacing:.05em;
+  font-weight:700;
+}
+
+.mencion-field__value{
+  font-size:13px;
+  color:var(--ink);
+  line-height:1.4;
+}
+
+/* Empty State */
+.empty-state{
+  text-align:center;
+  padding:48px 20px;
+  color:var(--muted);
+  font-size:14px;
+}
+.empty-state::before{
+  content:'🔍';
+  display:block;
+  font-size:48px;
+  margin-bottom:12px;
+  opacity:.5;
+}
+
+/* Pagination */
+.pagination{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  gap:8px;
+  margin-top:24px;
+  flex-wrap:wrap;
+}
+
+.pagination-btn{
+  padding:10px 16px;
+  border-radius:8px;
+  font-size:14px;
+  font-weight:600;
+  border:2px solid var(--border);
+  background:var(--card);
+  color:var(--ink);
+  cursor:pointer;
+  transition:all .2s;
+  text-decoration:none;
+}
+@media(hover:hover){
+  .pagination-btn:hover:not(.disabled){
+    background:var(--brand);
+    color:white;
+    border-color:var(--brand);
+    transform:translateY(-2px);
+  }
+}
+.pagination-btn.active{
+  background:var(--brand);
+  color:white;
+  border-color:var(--brand);
+}
+.pagination-btn.disabled{
+  opacity:.4;
+  cursor:not-allowed;
+}
+.pagination-info{
+  font-size:14px;
+  color:var(--muted);
+  padding:0 12px;
+}
+
+/* Responsive */
+@media (max-width: 992px){
+  .field.span-3{grid-column:span 6}
+  .field.span-4{grid-column:span 6}
+}
+
+@media (max-width: 768px){
+  .field.span-3,
+  .field.span-4,
+  .field.span-6{grid-column:span 12;}
+  .filters-actions{flex-direction:column;}
+  .btn{width:100%;justify-content:center;}
+  .results-info{flex-direction:column;gap:8px;text-align:center;}
+  .table-card{display:none;}
+  .menciones-cards{display:grid;}
+  .mencion-field{grid-template-columns:1fr;gap:4px;}
+}
+
+@media (max-width: 480px){
+  .pagination-btn{padding:8px 12px;font-size:13px;}
+  .filters-grid{gap:10px;}
+}
+
+/* Accesibilidad / Motion */
+@media (prefers-reduced-motion: reduce){
+  *{
+    animation-duration:.01ms!important;
+    animation-iteration-count:1!important;
+    transition-duration:.01ms!important;
+    scroll-behavior:auto!important;
+  }
+}
+{% endblock %}
+
+{% block content %}
+<div class="menciones-container">
+  <!-- Header -->
+  <div class="page-header">
+    <h1>Consulta de Menciones 🎓</h1>
+    <p>Filtra y busca menciones por especialidad y programa certificado</p>
+  </div>
+
+  <!-- Filters -->
+  <form class="filters-card" method="get">
+    <div class="filters-grid">
+      <div class="field span-6">
+        <label>Buscar</label>
+        <input type="text" name="q" value="{{ q }}" placeholder="Busca por número, especialidad o mención...">
+      </div>
+      <div class="field span-3">
+        <label>Especialidad</label>
+        <select name="especialidad">
+          <option value="">-- Todas --</option>
+          {% for esp in especialidades %}
+          <option value="{{ esp }}" {% if especialidad==esp %}selected{% endif %}>{{ esp }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field span-3">
+        <label>P. Certificado</label>
+        <select name="p_certificado">
+          <option value="">-- Todos --</option>
+          {% for cert in p_certificados %}
+          <option value="{{ cert }}" {% if p_certificado==cert %}selected{% endif %}>{{ cert }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div class="filters-actions">
+      <button class="btn btn-primary" type="submit">🔎 Buscar</button>
+      <a class="btn btn-secondary" href="{{ url_for('menciones.index') }}">↺ Limpiar filtros</a>
+    </div>
+  </form>
+
+  {% if rows %}
+  <div class="results-info">
+    <span>Mostrando <strong class="results-count">{{ pagination.start }}-{{ pagination.end }}</strong> de <strong class="results-count">{{ pagination.total }}</strong> resultados</span>
+    <span>Página {{ pagination.page }} de {{ pagination.pages }}</span>
+  </div>
+  {% endif %}
+
+  <!-- Table -->
+  <div class="table-card">
+    <div class="table-wrapper">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Nro</th><th>Especialidad</th><th>P. Certificado</th><th>Mención</th>
+            <th>Horas</th><th>F. Inicio</th><th>F. Término</th><th>F. Emisión</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if rows and rows|length %}
+          {% for r in rows %}
+          <tr>
+            <td><strong>{{ r.nro }}</strong></td>
+            <td>{{ r.especialidad }}</td>
+            <td>{{ r.p_certificado }}</td>
+            <td>{{ r.mencion }}</td>
+            <td>{{ r.horas }}</td>
+            <td>{{ r.f_inicio }}</td>
+            <td>{{ r.f_termino }}</td>
+            <td>{{ r.f_emision }}</td>
+          </tr>
+          {% endfor %}
+          {% else %}
+          <tr><td colspan="8" class="empty-state">No se encontraron resultados con los filtros aplicados</td></tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Cards -->
+  <div class="menciones-cards">
+    {% if rows and rows|length %}
+    {% for r in rows %}
+    <article class="mencion-card">
+      <header class="mencion-card__header">
+        <div>
+          <div class="mencion-card__nro">N° {{ r.nro }}</div>
+          <div class="mencion-card__esp">{{ r.especialidad }}</div>
+        </div>
+      </header>
+      <div class="mencion-card__grid">
+        <div class="mencion-field"><div class="mencion-field__label">P. Certificado</div><div class="mencion-field__value">{{ r.p_certificado }}</div></div>
+        <div class="mencion-field"><div class="mencion-field__label">Mención</div><div class="mencion-field__value">{{ r.mencion }}</div></div>
+        <div class="mencion-field"><div class="mencion-field__label">Horas</div><div class="mencion-field__value">{{ r.horas }}</div></div>
+        <div class="mencion-field"><div class="mencion-field__label">F. Inicio</div><div class="mencion-field__value">{{ r.f_inicio }}</div></div>
+        <div class="mencion-field"><div class="mencion-field__label">F. Término</div><div class="mencion-field__value">{{ r.f_termino }}</div></div>
+        <div class="mencion-field"><div class="mencion-field__label">F. Emisión</div><div class="mencion-field__value">{{ r.f_emision }}</div></div>
+      </div>
+    </article>
+    {% endfor %}
+    {% else %}
+    <div class="empty-state">No se encontraron resultados con los filtros aplicados</div>
+    {% endif %}
+  </div>
+
+  <!-- Pagination -->
+  {% if rows and pagination.pages > 1 %}
+  <div class="pagination">
+    <a href="?{{ pagination.query_prev }}" class="pagination-btn {% if pagination.page == 1 %}disabled{% endif %}">← Anterior</a>
+    <span class="pagination-info">Página {{ pagination.page }} de {{ pagination.pages }}</span>
+    <a href="?{{ pagination.query_next }}" class="pagination-btn {% if pagination.page == pagination.pages %}disabled{% endif %}">Siguiente →</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -33,7 +33,12 @@ class Config:
             'id': '1oH5ta9J3anG78SbdrU6m4iF0SmIbJpR3GaN9vztVA5w',
             'worksheets': {'registro': 'OCTUBRE-2025'},
         },
-    }
+        'menciones': {
+        'id': '1zaFo7ZJq0yAIjNwcTWJiCr3odCzs6ZYL_ibRE8yrkeM',
+        'worksheets': {
+            'registro': 'MENCIONES'},
+    },
+}
 
     # Resuelve credenciales de Google en este orden:
     # 1) GOOGLE_SA_FILE (ruta a archivo: /etc/secrets/sa.json en Render, ./service_account.json en local)

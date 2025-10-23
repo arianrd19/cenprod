@@ -1,6 +1,5 @@
 # services/google_sheet_service.py
 # -*- coding: utf-8 -*-
-
 import os
 import json
 import time
@@ -8,7 +7,7 @@ import random
 import unicodedata
 import logging
 from functools import wraps
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 import gspread
 from google.oauth2.service_account import Credentials
@@ -265,13 +264,15 @@ class GoogleSheetService:
     # Helpers de normalización / parsing
     # ----------------------------------------------------------
     @staticmethod
+    @staticmethod
     def _parse_date(v):
-        """Convierte string/datetime/serial de Google Sheets a date."""
+        """Convierte string/datetime/serial de Google Sheets a date.
+        Soporta formatos como '24 de marzo del 2025', '24/03/2025', etc.
+        """
         if isinstance(v, datetime):
             return v.date()
         if v is None or v == "":
             return None
-
         # Serial de Google Sheets (días desde 1899-12-30)
         try:
             if isinstance(v, (int, float)):
@@ -279,13 +280,31 @@ class GoogleSheetService:
                 return (base + timedelta(days=float(v))).date()
         except Exception:
             pass
-
         s = str(v).strip()
+        # Formatos estándar
         for fmt in ("%d/%m/%Y", "%Y-%m-%d", "%d-%m-%Y", "%m/%d/%Y", "%Y/%m/%d"):
             try:
                 return datetime.strptime(s, fmt).date()
             except ValueError:
                 continue
+        # Formato de texto largo: "24 de marzo del 2025"
+        try:
+            meses = {
+                "enero": 1, "febrero": 2, "marzo": 3, "abril": 4, "mayo": 5, "junio": 6,
+                "julio": 7, "agosto": 8, "setiembre": 9, "septiembre": 9,  # <-- Agrega "setiembre"
+                "octubre": 10, "noviembre": 11, "diciembre": 12
+            }
+            import re
+            match = re.match(r"(\d{1,2})\s+de\s+(\w+)(?:\s+del\s+(\d{4}))?", s, re.IGNORECASE)
+            if match:
+                dia = int(match.group(1))
+                mes = meses.get(match.group(2).lower())
+                ano = int(match.group(3)) if match.group(3) else datetime.now().year
+                if mes:
+                    return date(ano, mes, dia)
+        except Exception:
+            pass
+        # ISO format
         try:
             return datetime.fromisoformat(s.split()[0]).date()
         except Exception:
@@ -427,30 +446,123 @@ class GoogleSheetService:
     # ----------------------------------------------------------
     # DASHBOARD: ventas por Código (PERSONAL)
     # ----------------------------------------------------------
+    def search_mentions(self, config, q=None, especialidad=None, mencion=None,
+                    p_certificado=None, horas_min=None, horas_max=None,
+                    f_ini_desde=None, f_ini_hasta=None,
+                    f_emis_desde=None, f_emis_hasta=None,
+                    limit=200):
+        """
+        Lee la hoja MENCIONES y filtra por los parámetros indicados.
+        - q: búsqueda de texto en NRO, ESPECIALIDAD, MENCIÓN, P. CERTIFICADO
+        - horas: se devuelve como entero si es un número entero
+        """
+        empty = []
+        try:
+            conf = config['SHEETS']['menciones']
+            sh = self.get_sheet_by_key(conf['id'])
+            if not sh:
+                return empty
+            ws_title = conf['worksheets']['registro']
+            ws = self._ws_cache.get((conf['id'], ws_title))
+            if not ws:
+                ws = sh.worksheet(ws_title)
+                self._ws_cache[(conf['id'], ws_title)] = ws
+            rows = self._records_from_ws(ws)
+            if not rows:
+                return empty
+            # Mapear encabezados
+            key_index = self._index_keys(rows[0])
+            k_nro   = self._find_key(key_index, ["NRO"], ["nro","numero","n°"])
+            k_esp   = self._find_key(key_index, ["ESPECIALIDAD"], ["especialidad"])
+            k_pcert = self._find_key(key_index, ["P. CERTIFICADO","P CERTIFICADO","PROCESO CERTIFICADO"], ["cert"])
+            k_menc  = self._find_key(key_index, ["MENCIÓN","MENCION"], ["mencion"])
+            k_horas = self._find_key(key_index, ["HORAS"], ["horas"])
+            k_fini  = self._find_key(key_index, ["F. INICIO","FECHA INICIO"], ["inicio"])
+            k_fter  = self._find_key(key_index, ["F. TÉRMINO","F. TERMINO","FECHA TERMINO","FECHA TÉRMINO"], ["termino","término"])
+            k_femis = self._find_key(key_index, ["F. EMISIÓN","F. EMISION","FECHA EMISION","FECHA EMISIÓN"], ["emision","emisión"])
+            q_norm = (q or "").strip().lower()
+            p_cert_norm = (p_certificado or "").strip().lower() if p_certificado else None
+            def parse_num(v):
+                try:
+                    return float(str(v).replace(",", "."))
+                except Exception:
+                    return None
+            out = []
+            for r in rows:
+                # Compose record
+                nro   = str(r.get(k_nro, "")).strip() if k_nro else ""
+                esp   = str(r.get(k_esp, "")).strip() if k_esp else ""
+                menc_ = str(r.get(k_menc, "")).strip() if k_menc else ""
+                cert_raw = str(r.get(k_pcert, "")).strip() if k_pcert else ""
+                horas = parse_num(r.get(k_horas, "")) if k_horas else None
+                fi = self._parse_date(r.get(k_fini, "")) if k_fini else None
+                ft = self._parse_date(r.get(k_fter, "")) if k_fter else None
+                fe = self._parse_date(r.get(k_femis, "")) if k_femis else None
+                # Filtros
+                if q_norm:
+                    blob = " ".join([nro, esp, menc_, cert_raw]).lower()
+                    if q_norm not in blob:
+                        continue
+                if especialidad and esp.lower() != especialidad.strip().lower():
+                    continue
+                if mencion and menc_.lower() != mencion.strip().lower():
+                    continue
+                if p_cert_norm and p_cert_norm not in cert_raw.lower():
+                    continue
+                if horas_min is not None and (horas is None or horas < float(horas_min)):
+                    continue
+                if horas_max is not None and (horas is None or horas > float(horas_max)):
+                    continue
+                if f_ini_desde and (not fi or fi < f_ini_desde):
+                    continue
+                if f_ini_hasta and (not fi or fi > f_ini_hasta):
+                    continue
+                if f_emis_desde and (not fe or fe < f_emis_desde):
+                    continue
+                if f_emis_hasta and (not fe or fe > f_emis_hasta):
+                    continue
+                # Formatear horas como entero si es posible
+                horas_display = int(horas) if horas and horas.is_integer() else horas if horas is not None else ""
+                out.append({
+                    "nro": nro,
+                    "especialidad": esp,
+                    "p_certificado": cert_raw,
+                    "mencion": menc_,
+                    "horas": horas_display,
+                    "f_inicio": fi.strftime("%d/%m/%Y") if fi else "",
+                    "f_termino": ft.strftime("%d/%m/%Y") if ft else "",
+                    "f_emision": fe.strftime("%d/%m/%Y") if fe else "",
+                    "_sort": (fi or fe or ft or None)
+                })
+                if limit is not None and len(out) >= int(limit):
+                    break
+            # Ordenar por fecha de inicio (o emisión) desc
+            out.sort(key=lambda x: (x["_sort"] or date(1900, 1, 1)), reverse=True)
+            for x in out:
+                x.pop("_sort", None)
+            return out
+        except Exception as e:
+            _log.error(f"search_mentions error: {e}", exc_info=True)
+            return empty
     def get_sales_by_code(self, personal_code: str, d_start, d_end, config):
         """Filtra ventas por PERSONAL == personal_code en el rango [d_start, d_end]."""
         empty = {"count": 0, "total_monto": 0.0, "ventas": []}
         if not personal_code:
             return empty
-
         try:
             dash_cfg = config["SHEETS"]["dashboard"]
             sh = self.get_sheet_by_key(dash_cfg["id"])
             if not sh:
                 return empty
-
             ws_title = dash_cfg["worksheets"]["registro"]
             ws = self._ws_cache.get((dash_cfg["id"], ws_title))
             if not ws:
                 ws = sh.worksheet(ws_title)
                 self._ws_cache[(dash_cfg["id"], ws_title)] = ws
-
             rows = self._records_from_ws(ws)
             if not rows:
                 return empty
-
             key_index = self._index_keys(rows[0])
-
             k_personal = self._find_key(key_index, ["PERSONAL"], ["personal", "asesor", "vendedor"])
             k_fecha = self._find_key(key_index, ["FECHA DE LA VENTA", "Marca temporal"], ["fecha"])
             k_monto = self._find_key(key_index, ["MONTO DEPOSITADO"], ["monto", "importe"])
@@ -459,25 +571,19 @@ class GoogleSheetService:
             k_celular = self._find_key(key_index, ["CELULAR DEL CLIENTE", "CELULAR"], ["celular"])
             k_producto = self._find_key(key_index, ["TIPO DE PRODUCTO", "PRODUCTO"], ["producto"])
             k_operacion = self._find_key(key_index, ["NUMERO DE OPERACIÓN", "NUMERO DE OPERACION"], ["operacion"])
-
             if not k_personal:
                 _log.debug("No se encontró columna PERSONAL en dashboard")
                 return empty
-
             target = self._norm_code_loose(personal_code)
-
             ventas, total = [], 0.0
             for r in rows:
                 code_val = self._norm_code_loose(r.get(k_personal, ""))
                 if code_val != target:
                     continue
-
                 f = self._parse_date(r.get(k_fecha, "")) if k_fecha else None
                 if not f or not (d_start <= f <= d_end):
                     continue
-
                 monto = self._safe_float(r.get(k_monto, 0)) if k_monto else 0.0
-
                 ventas.append({
                     "fecha": f.strftime("%d/%m/%Y"),
                     "cliente": r.get(k_cliente, "") if k_cliente else "",
@@ -489,17 +595,13 @@ class GoogleSheetService:
                     "_fecha_dt": f,
                 })
                 total += monto
-
             ventas.sort(key=lambda x: x["_fecha_dt"], reverse=True)
             for v in ventas:
                 v.pop("_fecha_dt", None)
-
             return {"count": len(ventas), "total_monto": round(total, 2), "ventas": ventas}
-
         except Exception as e:
             _log.debug("get_sales_by_code error: %s", e, exc_info=False)
             return empty
-
 
 # Instancia global del servicio (lazy connect evita conectar al importar)
 gs_service = GoogleSheetService()

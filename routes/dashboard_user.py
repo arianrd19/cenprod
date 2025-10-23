@@ -1,7 +1,7 @@
 # routes/dashboard_user.py
 from flask import Blueprint, render_template, session, current_app, flash, request
 from datetime import date, timedelta
-from services.google_sheet_service import GoogleSheetService
+from services.google_sheet_service import gs_service
 from .auth import login_required
 
 bp = Blueprint("dashboard_user", __name__, url_prefix="/mi-dashboard")
@@ -39,7 +39,7 @@ def me_dashboard():
         last_day = date(2999, 12, 31)
 
     # --- Servicio
-    svc = GoogleSheetService()
+    svc = gs_service
 
     # --- 1) Código del usuario
     codigo = (user.get("codigo") or "").strip()

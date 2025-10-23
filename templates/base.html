@@ -4,10 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <!-- Título por defecto; las vistas pueden sobrescribir el bloque -->
   <title>{% block title %}CENPROD{% endblock %}</title>
 
-  <!-- Favicon / app icons -->
   <link rel="icon" href="{{ url_for('static', filename='assets/2.jpeg') }}" type="image/jpeg" />
   <link rel="apple-touch-icon" href="{{ url_for('static', filename='assets/2.jpeg') }}" />
   <meta name="application-name" content="CENPROD" />
@@ -26,81 +24,194 @@
 
     /* ====== Sidebar ====== */
     .sidebar {
-      width: 260px; background: #22262b; box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
-      display: flex; flex-direction: column; position: fixed; height: 100vh; left: 0; top: 0;
-      z-index: 1000; transition: transform 0.3s ease;
+      width: 260px;
+      background: #22262b;
+      box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+      display: flex;
+      flex-direction: column;
+      position: fixed;
+      height: 100vh;
+      left: 0;
+      top: 0;
+      z-index: 1000;
+      transition: transform 0.3s ease;
     }
 
     /* Header */
     .sidebar-header {
-      padding: 25px 20px 20px; border-bottom: 1px solid rgba(137, 189, 194, 0.15);
-      display: flex; align-items: center; justify-content: center;
+      padding: 25px 20px 20px;
+      border-bottom: 1px solid rgba(137, 189, 194, 0.15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .brand-link {
-      display: flex; align-items: center; justify-content: center; text-decoration: none;
-      gap: 10px; color: #fafcfc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+      gap: 10px;
+      color: #fafcfc;
     }
 
-    /* LOGO */
     .sidebar-logo {
-      display: block; max-width: 250px; max-height: 110px; width: 100%; height: auto;
-      cursor: pointer; transition: transform 0.2s; object-fit: contain;
+      display: block;
+      max-width: 250px;
+      max-height: 110px;
+      width: 100%;
+      height: auto;
+      cursor: pointer;
+      transition: transform 0.2s;
+      object-fit: contain;
     }
     .sidebar-logo:hover { transform: scale(1.05); }
 
     .brand-fallback {
-      display: none; color: #fafcfc; font-weight: 700; font-size: 18px; letter-spacing: 0.5px;
+      display: none;
+      color: #fafcfc;
+      font-weight: 700;
+      font-size: 18px;
+      letter-spacing: 0.5px;
     }
 
     /* ====== Usuario ====== */
     .sidebar-user {
-      padding: 30px 20px 20px; border-bottom: 1px solid rgba(137, 189, 194, 0.15);
-      display: flex; flex-direction: column; align-items: center; text-align: center;
+      padding: 30px 20px 20px;
+      border-bottom: 1px solid rgba(137, 189, 194, 0.15);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
     }
     .user-avatar {
-      width: 70px; height: 70px; background: linear-gradient(135deg, #24bc57 0%, #126988 100%);
-      border-radius: 50%; display: flex; align-items: center; justify-content: center;
-      font-size: 32px; color: #fff; margin-bottom: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+      width: 70px;
+      height: 70px;
+      background: linear-gradient(135deg, #24bc57 0%, #126988 100%);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      color: #fff;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.25);
     }
     .user-name { color: #fafcfc; font-size: 16px; font-weight: 600; margin-bottom: 4px; }
     .user-email { color: #89bdc2; font-size: 12px; }
 
     /* ====== Navegación ====== */
-    .sidebar-nav { flex: 1; padding: 20px 0; overflow-y: auto; }
-    .nav-item {
-      display: flex; align-items: center; gap: 12px; padding: 12px 20px;
-      color: #89bdc2; text-decoration: none; font-size: 14px; font-weight: 500; transition: all 0.2s;
+    .sidebar-nav {
+      flex: 1;
+      padding: 20px 0;
+      overflow-y: auto;
+
+      /* Scrollbar minimalista */
+      scrollbar-width: thin; /* Firefox */
+      scrollbar-color: rgba(255,255,255,.25) transparent;
     }
-    .nav-item:hover { background: rgba(137, 189, 194, 0.1); color: #fafcfc; }
-    .nav-item.active { background: rgba(36, 188, 87, 0.15); color: #24bc57; border-left: 3px solid #24bc57; }
+
+    .sidebar-nav::-webkit-scrollbar {
+      width: 6px;
+    }
+    .sidebar-nav::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .sidebar-nav::-webkit-scrollbar-thumb {
+      background: rgba(255,255,255,.25);
+      border-radius: 6px;
+    }
+    .sidebar-nav:hover::-webkit-scrollbar-thumb {
+      background: rgba(255,255,255,.35);
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 20px;
+      color: #89bdc2;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    .nav-item:hover {
+      background: rgba(137, 189, 194, 0.1);
+      color: #fafcfc;
+    }
+    .nav-item.active {
+      background: rgba(36, 188, 87, 0.15);
+      color: #24bc57;
+      border-left: 3px solid #24bc57;
+    }
     .nav-item span:first-child { font-size: 18px; }
 
     /* ====== Footer ====== */
-    .sidebar-footer { padding: 20px; border-top: 1px solid rgba(137, 189, 194, 0.15); }
+    .sidebar-footer {
+      padding: 20px;
+      border-top: 1px solid rgba(137, 189, 194, 0.15);
+    }
     .logout-btn {
-      display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 12px;
-      background: #24bc57; color: #fafcfc; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      padding: 12px;
+      background: #24bc57;
+      color: #fafcfc;
+      text-decoration: none;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 14px;
       transition: background 0.2s;
     }
     .logout-btn:hover { background: #1ea047; }
 
     /* ====== Main ====== */
-    .main-content { flex: 1; margin-left: 260px; padding: 30px; transition: margin-left 0.3s ease; }
+    .main-content {
+      flex: 1;
+      margin-left: 260px;
+      padding: 30px;
+      transition: margin-left 0.3s ease;
+    }
     .container { max-width: 1400px; margin: 0 auto; }
 
     /* ====== Botón móvil ====== */
     .mobile-toggle {
-      display: none; position: fixed; top: 15px; left: 15px; z-index: 1001;
-      background: #22262b; color: #fafcfc; border: none; padding: 10px 15px; border-radius: 8px;
-      cursor: pointer; font-size: 20px;
+      display: none;
+      position: fixed;
+      top: 15px;
+      left: 15px;
+      z-index: 1001;
+      background: #22262b;
+      color: #fafcfc;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 20px;
     }
     .mobile-overlay {
-      display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 999;
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 999;
     }
 
     /* ====== Alertas ====== */
-    .alert { padding: 16px 20px; border-radius: 10px; margin-bottom: 20px; font-size: 14px; border-left: 4px solid; }
+    .alert {
+      padding: 16px 20px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      font-size: 14px;
+      border-left: 4px solid;
+    }
     .alert-error   { background-color: #fee;    color: #c33;    border-color: #c33; }
     .alert-success { background-color: #e8f5e9; color: #2a7;    border-color: #24bc57; }
     .alert-info    { background-color: #e3f2fd; color: #126988; border-color: #126988; }
@@ -113,6 +224,7 @@
       .mobile-toggle { display: block; }
       .mobile-overlay.active { display: block; }
     }
+
     @media (max-width: 768px) {
       .main-content { padding: 70px 15px 15px; }
       .sidebar { width: 280px; }
@@ -125,22 +237,16 @@
 <body>
 {% if session.get('user') %}
 <div class="app-layout">
-  <!-- Botón móvil -->
   <button class="mobile-toggle" onclick="toggleSidebar()">☰</button>
   <div class="mobile-overlay" onclick="toggleSidebar()"></div>
 
-  <!-- Sidebar -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
       <a href="{{ url_for('dashboard.index') }}" class="brand-link">
-        <img
-          src="{{ url_for('static', filename='assets/logo.png') }}"
-          alt="Logo CENPROD"
-          class="sidebar-logo"
-          loading="eager"
-          decoding="async"
-          onerror="this.style.display='none';this.closest('.brand-link').querySelector('.brand-fallback').style.display='inline-flex';"
-        />
+        <img src="{{ url_for('static', filename='assets/logo.png') }}"
+             alt="Logo CENPROD"
+             class="sidebar-logo"
+             onerror="this.style.display='none';this.closest('.brand-link').querySelector('.brand-fallback').style.display='inline-flex';"/>
         <span class="brand-fallback">CENPROD</span>
       </a>
     </div>
@@ -152,29 +258,20 @@
     </div>
 
     <nav class="sidebar-nav">
-      <a href="{{ url_for('dashboard.index') }}" class="nav-item">
-        <span>🏠</span> Inicio
-      </a>
-      <a href="{{ url_for('dashboard_user.me_dashboard') }}" class="nav-item">
-        <span>📊</span> Dashboard
-      </a>
-      <a href="{{ url_for('ventas.consulta') }}" class="nav-item">
-        <span>💰</span> Consulta de ventas
-      </a>
+      <a href="{{ url_for('dashboard.index') }}" class="nav-item"><span>🏠</span> Inicio</a>
+      <a href="{{ url_for('dashboard_user.me_dashboard') }}" class="nav-item"><span>📊</span> Dashboard</a>
+      <a href="{{ url_for('ventas.consulta') }}" class="nav-item"><span>💰</span> Consulta de ventas</a>
+      <a href="{{ url_for('menciones.index') }}" class="nav-item"><span>🎓</span> Menciones</a>
     </nav>
 
     <div class="sidebar-footer">
-      <a href="{{ url_for('auth.logout') }}" class="logout-btn">
-        <span>🚪</span> Cerrar Sesión
-      </a>
+      <a href="{{ url_for('auth.logout') }}" class="logout-btn"><span>🚪</span> Cerrar Sesión</a>
     </div>
   </aside>
 
-  <!-- Contenido principal -->
   <main class="main-content">
     <div class="container">
-      {# 👇 Filtramos los flashes de login (categoria 'auth') en vistas autenticadas #}
-      {% with messages = get_flashed_messages(with_categories=true) %}
+      {% with messages = get_flashed_messages(with_categories='true') %}
         {% if messages %}
           {% for category, message in messages %}
             {% if not category.startswith('auth') %}
@@ -192,10 +289,11 @@
   function toggleSidebar() {
     const sidebar = document.getElementById('sidebar');
     const overlay = document.querySelector('.mobile-overlay');
-    sidebar.classList.toggle('active');
+    const isActive = sidebar.classList.toggle('active');
     overlay.classList.toggle('active');
+    document.body.style.overflow = isActive ? 'hidden' : '';
   }
-  // marcar item activo
+
   const currentPath = window.location.pathname.replace(/\/$/, "");
   document.querySelectorAll('.nav-item').forEach(item => {
     const href = item.getAttribute('href').replace(/\/$/, "");
@@ -205,7 +303,6 @@
 
 {% else %}
 <div class="container" style="margin-top: 30px; padding: 0 20px;">
-  {# 👇 Mostramos los flashes en la pantalla de login (incluyendo 'auth') #}
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
       {% for category, message in messages %}
@@ -213,7 +310,6 @@
       {% endfor %}
     {% endif %}
   {% endwith %}
-
   {{ self.content() }}
 </div>
 {% endif %}
