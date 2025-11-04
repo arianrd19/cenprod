@@ -2,10 +2,19 @@
 from flask import Flask
 from config import Config
 from routes import register_blueprints
+from datetime import datetime
 
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
+
+    # Registrar filtro personalizado para Jinja2
+    @app.template_filter('parse_date')
+    def parse_date_filter(s):
+        try:
+            return datetime.strptime(s, "%d/%m/%Y").date()
+        except Exception:
+            return datetime.now().date()  # Fecha por defecto si falla el parseo
 
     # Registrar todos los blueprints (incluye la raíz "/")
     register_blueprints(app)

@@ -1,0 +1,235 @@
+{% extends 'base.html' %}
+{% block title %}Mi Cobranza{% endblock %}
+
+{% block styles %}
+.cobranza-container {
+  max-width: 1200px;
+  margin: 1.5rem auto;
+  padding: 0 1rem;
+}
+
+.page-header {
+  margin-bottom: 30px;
+  text-align: center;
+}
+
+.page-header h1 {
+  font-size: 32px;
+  color: #22262b;
+  margin-bottom: 8px;
+  font-weight: 700;
+}
+
+.codigo-info {
+  color: #7b7370;
+  font-size: 15px;
+}
+
+.codigo-badge {
+  display: inline-block;
+  background: #24bc57;
+  color: #fafcfc;
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 14px;
+  margin-left: 8px;
+}
+
+.table-container {
+  background: #fafcfc;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(34, 38, 43, 0.08);
+  overflow: hidden;
+}
+
+.cobranza-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.cobranza-table thead {
+  background: #22262b;
+}
+
+.cobranza-table thead th {
+  text-align: center;
+  font-size: 11px;
+  color: #fafcfc;
+  padding: 16px 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.cobranza-table tbody td {
+  padding: 12px 10px;
+  border-bottom: 1px solid #e0e0e0;
+  font-size: 13px;
+  color: #22262b;
+  text-align: center;
+}
+
+.cobranza-table tbody tr:hover {
+  background: rgba(137, 189, 194, 0.05);
+}
+
+.cobranza-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.fecha-badge {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.fecha-vencida {
+  background-color: #fee;
+  color: #c00;
+  border: 1px solid #fcc;
+}
+
+.fecha-proxima {
+  background-color: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.fecha-normal {
+  background-color: #e9ecef;
+  color: #495057;
+  border: 1px solid #dee2e6;
+}
+
+.monto {
+  font-weight: 600;
+  color: #22262b;
+}
+
+.especialidad-tag {
+  display: inline-block;
+  padding: 4px 10px;
+  background: linear-gradient(135deg, #126988 0%, #22262b 100%);
+  color: #fafcfc;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  background: #fafcfc;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(34, 38, 43, 0.08);
+}
+
+.empty-icon {
+  font-size: 64px;
+  margin-bottom: 20px;
+}
+
+.empty-title {
+  font-size: 20px;
+  color: #22262b;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.empty-text {
+  color: #7b7370;
+  font-size: 14px;
+}
+
+@media (max-width: 768px) {
+  .page-header h1 {
+    font-size: 24px;
+  }
+
+  .cobranza-table thead th {
+    font-size: 9px;
+    padding: 12px 6px;
+  }
+
+  .cobranza-table tbody td {
+    font-size: 11px;
+    padding: 10px 6px;
+  }
+
+  .fecha-badge {
+    font-size: 10px;
+    padding: 4px 8px;
+  }
+
+  .especialidad-tag {
+    font-size: 9px;
+    padding: 3px 8px;
+  }
+}
+{% endblock %}
+
+{% block content %}
+<div class="cobranza-container">
+  <div class="page-header">
+    <h1>Mi Cobranza 💰</h1>
+    <p class="codigo-info">
+      {{ month }} <span class="codigo-badge">{{ codigo }}</span>
+    </p>
+  </div>
+
+  {% if cobranzas %}
+  <div class="table-container">
+    <table class="cobranza-table">
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Fecha de Cobro</th>
+          <th>Cliente</th>
+          <th>Celular</th>
+          <th>Monto Total</th>
+          <th>Monto Depositado</th>
+          <th>Especialidad</th>
+          <th>Observaciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for cobranza in cobranzas %}
+        {% set fecha_cobro_dt = cobranza.fecha_de_cobro|parse_date %}
+        {% set dias_restantes = (fecha_cobro_dt - now.date()).days %}
+        <tr>
+          <td>{{ cobranza.fecha }}</td>
+          <td>
+            <span class="fecha-badge {%
+              if dias_restantes < 0 %}fecha-vencida{%
+              elif dias_restantes <= 7 %}fecha-proxima{%
+              else %}fecha-normal{%
+              endif %}">
+              {{ cobranza.fecha_de_cobro }}
+            </span>
+          </td>
+          <td><strong>{{ cobranza.cliente }}</strong></td>
+          <td>{{ cobranza.celular }}</td>
+          <td class="monto">S/ {{ cobranza.monto_total }}</td>
+          <td class="monto">S/ {{ cobranza.monto_depositado }}</td>
+          <td>
+            <span class="especialidad-tag">{{ cobranza.especialidad }}</span>
+          </td>
+          <td>{{ cobranza.observaciones }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-icon">📋</div>
+    <div class="empty-title">No hay registros</div>
+    <div class="empty-text">No hay registros de cobranza con diferencias de monto para este período.</div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

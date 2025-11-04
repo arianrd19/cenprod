@@ -603,5 +603,98 @@ class GoogleSheetService:
             _log.debug("get_sales_by_code error: %s", e, exc_info=False)
             return empty
 
+    def get_cobranzas_by_code(self, personal_code: str, d_start, d_end, config):
+        """
+        Filtra cobranzas por PERSONAL == personal_code en el rango [d_start, d_end],
+        y donde MONTO TOTAL DE LA VENTA != MONTO DEPOSITADO.
+        Devuelve: {"count": int, "total_monto": float, "cobranzas": list[dict]}
+        """
+        empty = {"count": 0, "total_monto": 0.0, "cobranzas": []}
+        if not personal_code:
+            return empty
+        try:
+            ventas_cfg = config["SHEETS"]["ventas"]
+            sh = self.get_sheet_by_key(ventas_cfg["id"])
+            if not sh:
+                return empty
+
+            ws_title = ventas_cfg["worksheets"]["registro"]
+            ws = self._ws_cache.get((ventas_cfg["id"], ws_title))
+            if not ws:
+                ws = sh.worksheet(ws_title)
+                self._ws_cache[(ventas_cfg["id"], ws_title)] = ws
+
+            rows = self._records_from_ws(ws)
+            if not rows:
+                return empty
+
+            # Mapear columnas
+            key_index = self._index_keys(rows[0])
+            k_personal = self._find_key(key_index, ["PERSONAL"], ["personal", "asesor"])
+            k_fecha = self._find_key(key_index, ["FECHA DE LA VENTA"], ["fecha"])
+            k_monto_total = self._find_key(key_index, ["MONTO TOTAL DE LA VENTA"], ["monto_total"])
+            k_monto_depositado = self._find_key(key_index, ["MONTO DEPOSITADO"], ["monto_depositado"])
+            k_cliente = self._find_key(key_index, ["NOMBRE COMPLETO DEL CLIENTE"], ["cliente"])
+            k_dni = self._find_key(key_index, ["DNI DEL CLIENTE"], ["dni"])
+            k_celular = self._find_key(key_index, ["CELULAR DEL CLIENTE"], ["celular"])
+            k_correo = self._find_key(key_index, ["CORREO DEL CLIENTE"], ["correo"])
+            k_especialidad = self._find_key(key_index, ["ESPECIALIDAD"], ["especialidad"])
+            k_observaciones = self._find_key(key_index, ["OBSERVACIONES"], ["observaciones"])
+
+            if not k_personal or not k_monto_total or not k_monto_depositado:
+                return empty
+
+            target = self._norm_code_loose(personal_code)
+            cobranzas = []
+            total = 0.0
+
+            for r in rows:
+                code_val = self._norm_code_loose(r.get(k_personal, ""))
+                if code_val != target:
+                    continue
+
+                f = self._parse_date(r.get(k_fecha, "")) if k_fecha else None
+                if not f or not (d_start <= f <= d_end):
+                    continue
+
+                # Obtener montos
+                monto_total = self._safe_float(r.get(k_monto_total, 0))
+                monto_depositado = self._safe_float(r.get(k_monto_depositado, 0))
+
+                # Solo incluir si los montos son diferentes
+                if monto_total != monto_depositado:
+                    # Calcular fecha de cobro (fecha original + 30 días)
+                    fecha_de_cobro = f + timedelta(days=30)
+
+                    cobranzas.append({
+                        "fecha": f.strftime("%d/%m/%Y"),
+                        "fecha_de_cobro": fecha_de_cobro.strftime("%d/%m/%Y"),
+                        "fecha_de_cobro_dt": fecha_de_cobro,  # Para ordenar y comparar
+                        "cliente": r.get(k_cliente, "") if k_cliente else "",
+                        "dni": r.get(k_dni, "") if k_dni else "",
+                        "celular": r.get(k_celular, "") if k_celular else "",
+                        "correo": r.get(k_correo, "") if k_correo else "",
+                        "monto_total": monto_total,
+                        "monto_depositado": monto_depositado,
+                        "especialidad": r.get(k_especialidad, "") if k_especialidad else "",
+                        "observaciones": r.get(k_observaciones, "") if k_observaciones else "",
+                    })
+                    total += monto_depositado
+
+            # Ordenar por fecha_de_cobro (de menor a mayor)
+            cobranzas.sort(key=lambda x: x["fecha_de_cobro_dt"])
+
+            # Eliminar la clave temporal "fecha_de_cobro_dt" antes de devolver
+            for c in cobranzas:
+                c.pop("fecha_de_cobro_dt", None)
+
+            return {"count": len(cobranzas), "total_monto": round(total, 2), "cobranzas": cobranzas}
+        except Exception as e:
+            _log.debug("get_cobranzas_by_code error: %s", e, exc_info=False)
+            return empty
+
+
+
+
 # Instancia global del servicio (lazy connect evita conectar al importar)
 gs_service = GoogleSheetService()

@@ -6,6 +6,7 @@ core_bp = Blueprint("core", __name__)
 from .dashboard_user import bp as dashboard_user_bp
 from .diag_quick import diag_quick_bp
 from .diag import diag_bp
+from routes.cobranza import bp as cobranza_bp
 from routes.menciones import menciones_bp
 @core_bp.route("/")
 def index():
@@ -29,3 +30,4 @@ def register_blueprints(app):
     app.register_blueprint(diag_quick_bp)
     app.register_blueprint(diag_bp)
     app.register_blueprint(menciones_bp)
+    app.register_blueprint(cobranza_bp)

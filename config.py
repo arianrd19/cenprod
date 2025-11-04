@@ -38,6 +38,13 @@ class Config:
         'worksheets': {
             'registro': 'MENCIONES'},
     },
+        "cobranzas": {
+            "id": "15sZo9tyeF-hw0Pgd8YrDgJBNkUPXBF0u6BTEj8-p3Fw",  # ID de la hoja de Google Sheets
+            "worksheets": {
+                "registro": 'QUERYS',  # Ej: "Cobranzas 2024"
+            }
+    }
+
 }
 
     # Resuelve credenciales de Google en este orden:
