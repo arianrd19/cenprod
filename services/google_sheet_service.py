@@ -25,7 +25,7 @@ except Exception:
 
 from config import Config
 
-_log = logging.getLogger(__name__)  # ← usa logging en vez de print()
+_log = logging.getLogger(__name__)  # logging en vez de print()
 
 
 class GoogleSheetService:
@@ -43,7 +43,7 @@ class GoogleSheetService:
         if self._initialized:
             return
 
-        # Scopes mínimos para Sheets. Agrega drive.readonly si lo necesitas.
+        # Scopes mínimos para Sheets
         self.scopes = [
             "https://www.googleapis.com/auth/spreadsheets",
             # "https://www.googleapis.com/auth/drive.readonly",
@@ -54,7 +54,7 @@ class GoogleSheetService:
         self._sheet_cache = {}
         self._ws_cache = {}
 
-        # Lazy connect: NO conectamos aquí. Se hará en la primera operación real.
+        # Lazy connect: conecta recién en la primera operación
         self._initialized = True
 
     # ----------------------------------------------------------
@@ -63,32 +63,27 @@ class GoogleSheetService:
     def _connect(self):
         """
         Conecta usando:
-          1) Archivo indicado por Config.SERVICE_ACCOUNT_FILE (Render: /etc/secrets/sa.json;
-             Local: ./service_account.json), o
+          1) Archivo indicado por Config.SERVICE_ACCOUNT_FILE, o
           2) JSON completo en env (Config.SERVICE_ACCOUNT_JSON o GOOGLE_SERVICE_ACCOUNT).
-        Valida token antes de autorizar gspread para atrapar errores de firma temprano.
+        Valida token antes de autorizar gspread para atrapar errores temprano.
         """
         try:
             sa_path = getattr(Config, "SERVICE_ACCOUNT_FILE", None)
             if sa_path and os.path.exists(sa_path):
-                # Preferimos archivo: evita problemas de \n en private_key
                 self.creds = Credentials.from_service_account_file(sa_path, scopes=self.scopes)
             else:
                 raw = getattr(Config, "SERVICE_ACCOUNT_JSON", None) or os.getenv("GOOGLE_SERVICE_ACCOUNT")
                 if not raw:
                     raise FileNotFoundError("No hay credenciales: ni archivo ni JSON en env.")
-                info = json.loads(raw)  # Debe ser el JSON COMPLETO del Service Account
+                info = json.loads(raw)
                 self.creds = Credentials.from_service_account_info(info, scopes=self.scopes)
 
-            # Validación de token (si la firma de la key es inválida, falla aquí)
             probe = self.creds.with_scopes(self.scopes)
             probe.refresh(Request())
 
-            # Autoriza gspread
             self.client = gspread.authorize(self.creds)
             _log.info("Conexión con Google Sheets establecida")
         except Exception as e:
-            # No uses print: deja registro y propaga para que el caller decida
             _log.error("Error al conectar con Google Sheets: %s", e, exc_info=True)
             raise
 
@@ -264,47 +259,65 @@ class GoogleSheetService:
     # Helpers de normalización / parsing
     # ----------------------------------------------------------
     @staticmethod
-    @staticmethod
-    def _parse_date(v):
-        """Convierte string/datetime/serial de Google Sheets a date.
-        Soporta formatos como '24 de marzo del 2025', '24/03/2025', etc.
+    def _parse_date_any(v):
+        """
+        Convierte string/datetime/serial de Google Sheets a date.
+        Acepta:
+          - datetime/date
+          - str en %d/%m/%Y, %Y-%m-%d, %d-%m-%Y, %m/%d/%Y, %Y/%m/%d, ISO
+          - serial de Sheets/Excel (float/int; base 1899-12-30) o string numérico
         """
         if isinstance(v, datetime):
             return v.date()
+        if isinstance(v, date):
+            return v
         if v is None or v == "":
             return None
-        # Serial de Google Sheets (días desde 1899-12-30)
-        try:
-            if isinstance(v, (int, float)):
-                base = datetime(1899, 12, 30)
-                return (base + timedelta(days=float(v))).date()
-        except Exception:
-            pass
+
+        # Serial number directo (evita confundir "2025")
+        if isinstance(v, (int, float)):
+            n = float(v)
+            if 20000 <= n <= 60000:  # rango aprox 1954–2064
+                base = date(1899, 12, 30)
+                return base + timedelta(days=n)
+
         s = str(v).strip()
-        # Formatos estándar
+        # string numérico como serial
+        if s.replace(".", "", 1).isdigit():
+            try:
+                n = float(s)
+                if 20000 <= n <= 60000:
+                    base = date(1899, 12, 30)
+                    return base + timedelta(days=n)
+            except Exception:
+                pass
+
+        # formatos comunes
         for fmt in ("%d/%m/%Y", "%Y-%m-%d", "%d-%m-%Y", "%m/%d/%Y", "%Y/%m/%d"):
             try:
                 return datetime.strptime(s, fmt).date()
             except ValueError:
                 continue
-        # Formato de texto largo: "24 de marzo del 2025"
+
+        # Texto largo: "24 de marzo del 2025"
         try:
+            import re
             meses = {
                 "enero": 1, "febrero": 2, "marzo": 3, "abril": 4, "mayo": 5, "junio": 6,
-                "julio": 7, "agosto": 8, "setiembre": 9, "septiembre": 9,  # <-- Agrega "setiembre"
+                "julio": 7, "agosto": 8, "setiembre": 9, "septiembre": 9,
                 "octubre": 10, "noviembre": 11, "diciembre": 12
             }
-            import re
-            match = re.match(r"(\d{1,2})\s+de\s+(\w+)(?:\s+del\s+(\d{4}))?", s, re.IGNORECASE)
-            if match:
-                dia = int(match.group(1))
-                mes = meses.get(match.group(2).lower())
-                ano = int(match.group(3)) if match.group(3) else datetime.now().year
+            m = re.match(r"(\d{1,2})\s+de\s+(\w+)(?:\s+del\s+(\d{4}))?", s, re.IGNORECASE)
+            if m:
+                dia = int(m.group(1))
+                mes = meses.get(m.group(2).lower())
+                ano = int(m.group(3)) if m.group(3) else datetime.now().year
                 if mes:
                     return date(ano, mes, dia)
         except Exception:
             pass
-        # ISO format
+
+        # ISO parcial
         try:
             return datetime.fromisoformat(s.split()[0]).date()
         except Exception:
@@ -312,11 +325,22 @@ class GoogleSheetService:
 
     @staticmethod
     def _norm_code_loose(v: str) -> str:
-        """lower + sin acentos + sin espacios/guiones/guion_bajo (para comparar códigos)."""
+        """lower + sin acentos + sin espacios/guiones/guion_bajo (para comparar)."""
         s = str(v or "").strip().lower()
         s = "".join(c for c in unicodedata.normalize("NFD", s) if unicodedata.category(c) != "Mn")
         for ch in (" ", "-", "_"):
             s = s.replace(ch, "")
+        return s
+
+    @staticmethod
+    def _extract_code(v: str) -> str:
+        """
+        Extrae el código inicial de 'PERSONAL'. Ej: 'C002 - NOMBRE' -> 'C002'.
+        Si no hay separador, devuelve el string tal cual (recortado y upper).
+        """
+        s = str(v or "").strip().upper()
+        if " - " in s:
+            return s.split(" - ", 1)[0].strip()
         return s
 
     @staticmethod
@@ -447,13 +471,13 @@ class GoogleSheetService:
     # DASHBOARD: ventas por Código (PERSONAL)
     # ----------------------------------------------------------
     def search_mentions(self, config, q=None, especialidad=None, mencion=None,
-                    p_certificado=None, horas_min=None, horas_max=None,
-                    f_ini_desde=None, f_ini_hasta=None,
-                    f_emis_desde=None, f_emis_hasta=None,
-                    limit=200):
+                        p_certificado=None, horas_min=None, horas_max=None,
+                        f_ini_desde=None, f_ini_hasta=None,
+                        f_emis_desde=None, f_emis_hasta=None,
+                        limit=200):
         """
         Lee la hoja MENCIONES y filtra por los parámetros indicados.
-        - q: búsqueda de texto en NRO, ESPECIALIDAD, MENCIÓN, P. CERTIFICADO
+        - q: texto en NRO, ESPECIALIDAD, MENCIÓN, P. CERTIFICADO
         - horas: se devuelve como entero si es un número entero
         """
         empty = []
@@ -470,6 +494,7 @@ class GoogleSheetService:
             rows = self._records_from_ws(ws)
             if not rows:
                 return empty
+
             # Mapear encabezados
             key_index = self._index_keys(rows[0])
             k_nro   = self._find_key(key_index, ["NRO"], ["nro","numero","n°"])
@@ -480,13 +505,16 @@ class GoogleSheetService:
             k_fini  = self._find_key(key_index, ["F. INICIO","FECHA INICIO"], ["inicio"])
             k_fter  = self._find_key(key_index, ["F. TÉRMINO","F. TERMINO","FECHA TERMINO","FECHA TÉRMINO"], ["termino","término"])
             k_femis = self._find_key(key_index, ["F. EMISIÓN","F. EMISION","FECHA EMISION","FECHA EMISIÓN"], ["emision","emisión"])
+
             q_norm = (q or "").strip().lower()
             p_cert_norm = (p_certificado or "").strip().lower() if p_certificado else None
+
             def parse_num(v):
                 try:
                     return float(str(v).replace(",", "."))
                 except Exception:
                     return None
+
             out = []
             for r in rows:
                 # Compose record
@@ -495,9 +523,10 @@ class GoogleSheetService:
                 menc_ = str(r.get(k_menc, "")).strip() if k_menc else ""
                 cert_raw = str(r.get(k_pcert, "")).strip() if k_pcert else ""
                 horas = parse_num(r.get(k_horas, "")) if k_horas else None
-                fi = self._parse_date(r.get(k_fini, "")) if k_fini else None
-                ft = self._parse_date(r.get(k_fter, "")) if k_fter else None
-                fe = self._parse_date(r.get(k_femis, "")) if k_femis else None
+                fi = self._parse_date_any(r.get(k_fini, "")) if k_fini else None
+                ft = self._parse_date_any(r.get(k_fter, "")) if k_fter else None
+                fe = self._parse_date_any(r.get(k_femis, "")) if k_femis else None
+
                 # Filtros
                 if q_norm:
                     blob = " ".join([nro, esp, menc_, cert_raw]).lower()
@@ -521,6 +550,7 @@ class GoogleSheetService:
                     continue
                 if f_emis_hasta and (not fe or fe > f_emis_hasta):
                     continue
+
                 # Formatear horas como entero si es posible
                 horas_display = int(horas) if horas and horas.is_integer() else horas if horas is not None else ""
                 out.append({
@@ -536,14 +566,16 @@ class GoogleSheetService:
                 })
                 if limit is not None and len(out) >= int(limit):
                     break
+
             # Ordenar por fecha de inicio (o emisión) desc
             out.sort(key=lambda x: (x["_sort"] or date(1900, 1, 1)), reverse=True)
             for x in out:
                 x.pop("_sort", None)
             return out
         except Exception as e:
-            _log.error(f"search_mentions error: {e}", exc_info=True)
+            _log.error("search_mentions error: %s", e, exc_info=True)
             return empty
+
     def get_sales_by_code(self, personal_code: str, d_start, d_end, config):
         """Filtra ventas por PERSONAL == personal_code en el rango [d_start, d_end]."""
         empty = {"count": 0, "total_monto": 0.0, "ventas": []}
@@ -562,6 +594,7 @@ class GoogleSheetService:
             rows = self._records_from_ws(ws)
             if not rows:
                 return empty
+
             key_index = self._index_keys(rows[0])
             k_personal = self._find_key(key_index, ["PERSONAL"], ["personal", "asesor", "vendedor"])
             k_fecha = self._find_key(key_index, ["FECHA DE LA VENTA", "Marca temporal"], ["fecha"])
@@ -574,13 +607,14 @@ class GoogleSheetService:
             if not k_personal:
                 _log.debug("No se encontró columna PERSONAL en dashboard")
                 return empty
-            target = self._norm_code_loose(personal_code)
+
+            target = self._extract_code(personal_code).upper()
             ventas, total = [], 0.0
             for r in rows:
-                code_val = self._norm_code_loose(r.get(k_personal, ""))
+                code_val = self._extract_code(r.get(k_personal, ""))
                 if code_val != target:
                     continue
-                f = self._parse_date(r.get(k_fecha, "")) if k_fecha else None
+                f = self._parse_date_any(r.get(k_fecha, "")) if k_fecha else None
                 if not f or not (d_start <= f <= d_end):
                     continue
                 monto = self._safe_float(r.get(k_monto, 0)) if k_monto else 0.0
@@ -605,8 +639,9 @@ class GoogleSheetService:
 
     def get_cobranzas_by_code(self, personal_code: str, d_start, d_end, config):
         """
-        Filtra cobranzas por PERSONAL == personal_code en el rango [d_start, d_end],
-        y donde MONTO TOTAL DE LA VENTA != MONTO DEPOSITADO.
+        Filtra cobranzas por PERSONAL == personal_code y donde
+        MONTO TOTAL DE LA VENTA != MONTO DEPOSITADO.
+        El rango [d_start, d_end] se aplica sobre la FECHA DE COBRO (= FECHA DE LA VENTA + 30 días).
         Devuelve: {"count": int, "total_monto": float, "cobranzas": list[dict]}
         """
         empty = {"count": 0, "total_monto": 0.0, "cobranzas": []}
@@ -644,32 +679,33 @@ class GoogleSheetService:
             if not k_personal or not k_monto_total or not k_monto_depositado:
                 return empty
 
-            target = self._norm_code_loose(personal_code)
+            target = self._extract_code(personal_code).upper()
             cobranzas = []
             total = 0.0
 
             for r in rows:
-                code_val = self._norm_code_loose(r.get(k_personal, ""))
+                code_val = self._extract_code(r.get(k_personal, ""))
                 if code_val != target:
                     continue
 
-                f = self._parse_date(r.get(k_fecha, "")) if k_fecha else None
-                if not f or not (d_start <= f <= d_end):
+                f_venta = self._parse_date_any(r.get(k_fecha, "")) if k_fecha else None
+                if not f_venta:
                     continue
 
-                # Obtener montos
+                # FECHA DE COBRO = FECHA DE LA VENTA + 30 días
+                fecha_de_cobro = f_venta + timedelta(days=30)
+                if not (d_start <= fecha_de_cobro <= d_end):
+                    continue
+
+                # Montos
                 monto_total = self._safe_float(r.get(k_monto_total, 0))
                 monto_depositado = self._safe_float(r.get(k_monto_depositado, 0))
 
                 # Solo incluir si los montos son diferentes
                 if monto_total != monto_depositado:
-                    # Calcular fecha de cobro (fecha original + 30 días)
-                    fecha_de_cobro = f + timedelta(days=30)
-
                     cobranzas.append({
-                        "fecha": f.strftime("%d/%m/%Y"),
+                        "fecha": f_venta.strftime("%d/%m/%Y"),
                         "fecha_de_cobro": fecha_de_cobro.strftime("%d/%m/%Y"),
-                        "fecha_de_cobro_dt": fecha_de_cobro,  # Para ordenar y comparar
                         "cliente": r.get(k_cliente, "") if k_cliente else "",
                         "dni": r.get(k_dni, "") if k_dni else "",
                         "celular": r.get(k_celular, "") if k_celular else "",
@@ -678,22 +714,20 @@ class GoogleSheetService:
                         "monto_depositado": monto_depositado,
                         "especialidad": r.get(k_especialidad, "") if k_especialidad else "",
                         "observaciones": r.get(k_observaciones, "") if k_observaciones else "",
+                        "_fecha_cobro_dt": fecha_de_cobro,
                     })
+                    # Suma actual: monto depositado (si prefieres la diferencia u otro, ajusta aquí)
                     total += monto_depositado
 
-            # Ordenar por fecha_de_cobro (de menor a mayor)
-            cobranzas.sort(key=lambda x: x["fecha_de_cobro_dt"])
-
-            # Eliminar la clave temporal "fecha_de_cobro_dt" antes de devolver
+            # Ordenar por fecha_de_cobro asc
+            cobranzas.sort(key=lambda x: x["_fecha_cobro_dt"])
             for c in cobranzas:
-                c.pop("fecha_de_cobro_dt", None)
+                c.pop("_fecha_cobro_dt", None)
 
             return {"count": len(cobranzas), "total_monto": round(total, 2), "cobranzas": cobranzas}
         except Exception as e:
             _log.debug("get_cobranzas_by_code error: %s", e, exc_info=False)
             return empty
-
-
 
 
 # Instancia global del servicio (lazy connect evita conectar al importar)
