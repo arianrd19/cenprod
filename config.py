@@ -30,8 +30,8 @@ class Config:
             'worksheets': {'registro': 'QUERYS'},
         },
         'dashboard': {
-            'id': '1oH5ta9J3anG78SbdrU6m4iF0SmIbJpR3GaN9vztVA5w',
-            'worksheets': {'registro': 'OCTUBRE-2025'},
+            'id': '17HJ1796Y9OuF21L8X_aveY0sic-evFda7YCLUnoHTLY',
+            'worksheets': {'registro': 'NOVIEMBRE-2025'},
         },
         'menciones': {
         'id': '1zaFo7ZJq0yAIjNwcTWJiCr3odCzs6ZYL_ibRE8yrkeM',
