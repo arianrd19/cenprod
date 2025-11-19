@@ -30,18 +30,44 @@ def index():
             for row in credenciales
             if row.get('Posicion') and row.get('Volumen')
         ]
+
         usuarios_ordenados = sorted(usuarios, key=lambda x: x['posicion'])
         usuario_actual = next(
             (u for u in usuarios_ordenados if u['codigo'] == user.get('codigo')),
             None
         )
+
         leaderboard = []
-        if usuario_actual:
-            idx = usuarios_ordenados.index(usuario_actual)
-            if idx == 0:  # Si es el #1, mostrar 2 y 3
-                leaderboard = usuarios_ordenados[idx:idx+3]
+
+        if usuarios_ordenados:
+            primero = usuarios_ordenados[0]
+
+            if usuario_actual:
+                idx = usuarios_ordenados.index(usuario_actual)
+
+                # Si eres el #1 → top 3 como antes
+                if idx == 0:
+                    leaderboard = usuarios_ordenados[:3]
+                else:
+                    # Siempre anclamos el primer puesto
+                    leaderboard.append(primero)
+                    usados = {primero['codigo']}
+
+                    # Tu posición
+                    if usuario_actual['codigo'] not in usados:
+                        leaderboard.append(usuario_actual)
+                        usados.add(usuario_actual['codigo'])
+
+                    # El que va después de ti (si existe)
+                    next_idx = idx + 1
+                    if next_idx < len(usuarios_ordenados):
+                        siguiente = usuarios_ordenados[next_idx]
+                        if siguiente['codigo'] not in usados:
+                            leaderboard.append(siguiente)
             else:
-                leaderboard = usuarios_ordenados[max(0, idx-1):idx+2]
+                # Si no encontramos al usuario actual, mostramos top 3 por defecto
+                leaderboard = usuarios_ordenados[:3]
+
     except Exception as e:
         print(f"❌ Error al cargar leaderboard: {e}")
         leaderboard = []

@@ -40,24 +40,21 @@ def _bounds_from_tab(tab_title: str):
 @bp.route("/")
 @login_required
 def me_dashboard():
-    # --- Usuario en sesión
+    # --- Usuario en sesión ---
     user = session.get("user", {}) or {}
-    username = (user.get("name") or user.get("nombre") or "").strip()
+    username   = (user.get("name") or user.get("nombre") or "").strip()
     user_email = (user.get("email") or user.get("correo") or "").strip()
+    rol        = (user.get("rol") or "usuario").lower()
 
-    # --- Config del dashboard para leer el título de la pestaña (p.ej. 'OCTUBRE-2025')
     dash_cfg = current_app.config["SHEETS"]["dashboard"]
     tab_title = dash_cfg["worksheets"]["registro"]
 
-    # --- Overrides por querystring
-    # ?anio=2025&mes=11   -> fija el rango explícitamente
-    # ?codigo=C002        -> fuerza código
-    # ?nofilter=1         -> ignora el filtro de fechas (toma todo)
     q_anio = request.args.get("anio")
     q_mes = request.args.get("mes")
     codigo_override = request.args.get("codigo", "").strip()
     nofilter = request.args.get("nofilter") == "1"
 
+    # --- Rango de fechas ---
     if nofilter:
         d_start, d_end = date(1900, 1, 1), date(2999, 12, 31)
         month_label = "Todos"
@@ -68,31 +65,38 @@ def me_dashboard():
         except Exception:
             d_start, d_end, month_label = _bounds_from_tab(tab_title)
     else:
-        # Por defecto: usa el mes de la pestaña configurada (ej. OCTUBRE-2025)
         d_start, d_end, month_label = _bounds_from_tab(tab_title)
 
-    # --- Resolver código del usuario (prioriza email)
+    # --- Resolver código base desde sesión ---
     codigo = (user.get("codigo") or "").strip()
-    if codigo_override:
-        codigo = codigo_override
-    if not codigo:
-        key_for_lookup = user_email or username
-        if key_for_lookup:
-            codigo = gs_service.get_user_code(key_for_lookup, current_app.config)
+
+    # Usuario normal: no puede forzar código
+    if rol != "admin":
+        if not codigo:
+            key_for_lookup = user_email or username
+            if key_for_lookup:
+                codigo = gs_service.get_user_code(key_for_lookup, current_app.config)
+
+    # Admin: sí puede usar ?codigo=...
+    else:
+        if not codigo:
+            key_for_lookup = user_email or username
+            if key_for_lookup:
+                codigo = gs_service.get_user_code(key_for_lookup, current_app.config)
+        if codigo_override:
+            codigo = codigo_override
+
     if not codigo:
         flash("No se encontró el Código del usuario en CREDENCIALES. Verifica tu registro.", "error")
         stats = {"count": 0, "total_monto": 0.0, "ventas": []}
         pct = 0.0
     else:
-        # --- Ventas en rango (lee hoja 'dashboard' y filtra por FECHA DE LA VENTA)
         stats = gs_service.get_sales_by_code(codigo, d_start, d_end, current_app.config)
-        # Comisión
         pct = user.get("comision")
         if pct is None:
             key_for_lookup = user_email or username
             pct = gs_service.get_user_commission_pct(key_for_lookup, current_app.config)
 
-    # --- KPIs
     total = stats.get("total_monto", 0.0)
     count = stats.get("count", 0)
     commission = round(total * (pct or 0.0), 2)
@@ -111,10 +115,10 @@ def me_dashboard():
         ultimas=ultimas,
         codigo=codigo,
         nofilter=nofilter,
-        # Extras de credenciales
         posicion=user.get('posicion'),
         volumen_cred=user.get('volumen'),
         ventas_cred=user.get('ventas'),
         d_start=d_start,
         d_end=d_end,
+        is_admin=(rol == "admin"),
     )
